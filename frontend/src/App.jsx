@@ -276,7 +276,7 @@ function App() {
   }
 
   // ==========================================
-  // VIRTUAL PRESENCE ENGINE 
+  // VIRTUAL PRESENCE ENGINE (WITH FIXED SYNC)
   // ==========================================
   const isMuted = !isAudioEnabled;
 
@@ -291,12 +291,41 @@ function App() {
     if (thinkingRef.current) { thinkingRef.current.pause(); thinkingRef.current.currentTime = 0; }
   };
 
+  // PROFESSIONAL UPDATE: Stop ongoing response immediately
+  const handleStopResponse = () => {
+    if (['intro', 'answering'].includes(aiState)) {
+        stopAllAudio();
+        setAiState('idle'); 
+        
+        setChatHistory(prev => {
+            const lastMsg = prev[prev.length - 1];
+            if (lastMsg && lastMsg.role === 'ai') {
+                const updatedChat = [...prev];
+                updatedChat[updatedChat.length - 1] = {
+                    ...lastMsg,
+                    text: lastMsg.text + "\n\n*(Response interrupted by user)*"
+                };
+                return updatedChat;
+            }
+            return prev;
+        });
+    }
+  };
+
   const toggleAudio = () => {
     setIsAudioEnabled(prev => {
         const nextState = !prev;
-        if (audioRef.current) audioRef.current.muted = !nextState;
-        if (speakingRef.current) speakingRef.current.muted = !nextState;
-        if (thinkingRef.current) thinkingRef.current.muted = !nextState;
+        const willBeMuted = !nextState;
+        
+        if (audioRef.current) audioRef.current.muted = willBeMuted;
+        
+        if (speakingRef.current) {
+             speakingRef.current.muted = willBeMuted || (aiState !== 'intro');
+        }
+        
+        if (thinkingRef.current) {
+             thinkingRef.current.muted = willBeMuted;
+        }
 
         if (nextState && aiState === 'answering' && speakingRef.current && speakingRef.current.paused) {
              speakingRef.current.play().catch(e => console.log("Video Play Blocked:", e));
@@ -308,14 +337,14 @@ function App() {
 
   useEffect(() => {
       if (audioRef.current) audioRef.current.muted = isMuted;
-      if (speakingRef.current) speakingRef.current.muted = isMuted;
+      if (speakingRef.current) speakingRef.current.muted = isMuted || (aiState !== 'intro');
       if (thinkingRef.current) thinkingRef.current.muted = isMuted;
-  }, [isMuted]);
+  }, [isMuted, aiState]);
 
   const startIntroSequence = () => {
     stopAllAudio(); 
     setAiState('intro');
-    const introText = "I am the digital twin of Md Salik Ubair. I can answer questions about his engineering portfolio.";
+    const introText = "Hello! I'm the AI Digital Twin of Md Salik Ubair. I represent his professional knowledge, engineering experience, projects, and technical interests. I can answer questions about his portfolio, explain technical concepts, discuss AI, software engineering, and related technologies, while responding in a clear, structured, and professional manner aligned with his expertise.";
     setChatHistory([{ role: 'ai', text: introText }]);
     
     if (!isMuted && speakingRef.current) {
@@ -334,27 +363,27 @@ function App() {
     if (aiState === 'thinking') setAiState('idle_waiting');
   };
 
+  // FIX 2: Perfect Audio-Video Sync Logic
   const playBackendStream = (data) => {
     stopAllAudio(); 
 
     const responseText = data.ai_response || "Connection established.";
     const audioUrl = data.audio_url;
-    
-    // We only clean text for the scroll trigger logic, we save the RAW text to chatHistory for markdown
     const cleanSub = responseText.replace(/[*#`]/g, '').replace(/\[(.*?)\]\(.*?\)/g, '$1');
-    setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]);
     
     if (audioUrl) {
-        setAiState('answering');
-        
         const fullAudioUrl = `${API_BASE_URL}${audioUrl}?t=${new Date().getTime()}`; 
-        
         const newAudio = new Audio(fullAudioUrl);
         audioRef.current = newAudio; 
         newAudio.muted = isMuted; 
         
-        newAudio.onplay = () => {
-            if (speakingRef.current && !isMuted) {
+        newAudio.onplaying = () => {
+            if (!audioRef.current) return;
+
+            setAiState('answering');
+            setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]); 
+            
+            if (speakingRef.current) {
                 speakingRef.current.currentTime = 0;
                 speakingRef.current.play().catch(e => console.log("Video Play Blocked:", e));
             }
@@ -369,23 +398,30 @@ function App() {
         newAudio.onerror = (e) => {
             console.error("Audio Load Error:", e);
             setAiState('idle');
+            setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]); 
             handleSmartScroll(cleanSub);
         }
         
         newAudio.play().catch(e => { 
             console.error("Audio AutoPlay blocked:", e); 
             setAiState('idle'); 
+            setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]); 
             handleSmartScroll(cleanSub);
         });
     } else {
         setAiState('idle');
+        setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]);
         handleSmartScroll(cleanSub);
     }
   };
 
   const triggerAiQuery = (e) => {
     e.preventDefault();
-    if (!userQuery.trim() || ['intro', 'thinking', 'answering'].includes(aiState)) return;
+    if (!userQuery.trim() || ['intro', 'thinking'].includes(aiState)) return;
+    
+    if (aiState === 'answering') {
+        handleStopResponse();
+    }
     
     const questionToAsk = userQuery;
     setChatHistory(prev => [...prev, { role: 'user', text: questionToAsk }]);
@@ -394,9 +430,9 @@ function App() {
     setAiState('thinking');
     stopAllAudio(); 
 
-    if (thinkingRef.current && !isMuted) {
+    if (thinkingRef.current) {
         thinkingRef.current.currentTime = 0;
-        thinkingRef.current.play().catch(e => console.log(e));
+        thinkingRef.current.play().catch(e => console.log("Thinking video blocked", e));
     }
 
     fetch(`${API_BASE_URL}/api/rag/chat`, {
@@ -410,9 +446,9 @@ function App() {
     });
   };
 
-  const showThinking = aiState === 'thinking' && !isMuted;
+  const showThinking = ['thinking', 'idle_waiting'].includes(aiState) && !isMuted;
   const showSpeaking = ['intro', 'answering'].includes(aiState) && !isMuted;
-  const showIdle = ['standby', 'idle', 'idle_waiting'].includes(aiState) || isMuted;
+  const showIdle = ['standby', 'idle'].includes(aiState) || isMuted;
 
   // Render Navbar Links
   const navLinks = [
@@ -897,6 +933,13 @@ function App() {
                   <span className="text-[10px] md:text-xs font-bold text-white tracking-widest uppercase">Digital Twin Agent</span>
               </div>
               <div className="flex items-center gap-2">
+                  {/* PROFESSIONAL UPDATE: Stop Button (Only shows when speaking/intro) */}
+                  {['intro', 'answering'].includes(aiState) && (
+                      <button onClick={handleStopResponse} title="Stop ongoing response" className="flex items-center justify-center w-7 h-7 bg-red-950/30 text-red-400 rounded-md transition-colors border border-red-500/30 hover:bg-red-500 hover:text-white hover:border-red-600 shadow-[0_0_10px_rgba(239,68,68,0.2)]">
+                          <span className="text-sm">■</span>
+                      </button>
+                  )}
+
                   <button onClick={toggleAudio} className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors border ${!isAudioEnabled ? 'bg-red-500/10 text-red-400 border-red-500/30' : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white'}`}>
                       {isAudioEnabled ? '🔊' : '🔇'}
                   </button>
@@ -912,8 +955,8 @@ function App() {
               {/* FIXED AVATAR AREA (Mobile: Top Fixed, Desktop: Left Side) */}
               <div className="w-full h-[45vh] min-h-[300px] md:w-[260px] md:h-full bg-black border-b md:border-b-0 md:border-r border-white/10 relative flex-shrink-0">
                   <video src={idleVideo} autoPlay loop muted playsInline className={`absolute w-full h-full object-cover object-top md:object-center transition-opacity duration-700 ${showIdle ? 'opacity-100' : 'opacity-0'}`} />
-                  <video ref={thinkingRef} src={thinkingVideo} preload="none" loop={false} muted playsInline onEnded={handleThinkingEnded} className={`absolute w-full h-full object-cover object-top md:object-center transition-opacity duration-500 ${showThinking ? 'opacity-100' : 'opacity-0'}`} />
-                  <video ref={speakingRef} src={speakingVideo} preload="none" loop={aiState === 'answering'} muted={aiState === 'answering'} playsInline onEnded={handleSpeakingEnded} className={`absolute w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showSpeaking ? 'opacity-100' : 'opacity-0'}`} />
+                  <video ref={thinkingRef} src={thinkingVideo} preload="none" loop={false} playsInline onEnded={handleThinkingEnded} className={`absolute w-full h-full object-cover object-top md:object-center transition-opacity duration-500 ${showThinking ? 'opacity-100' : 'opacity-0'}`} />
+                  <video ref={speakingRef} src={speakingVideo} preload="none" loop={aiState === 'answering'} playsInline onEnded={handleSpeakingEnded} className={`absolute w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showSpeaking ? 'opacity-100' : 'opacity-0'}`} />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent pointer-events-none z-10" />
               </div>
 
@@ -935,7 +978,7 @@ function App() {
                               {chat.role === 'ai' ? (
                                   <ReactMarkdown
                                       components={{
-                                          p: ({node, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
+                                          p: ({node, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed whitespace-pre-line" {...props} />,
                                           ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
                                           li: ({node, ...props}) => <li className="text-slate-300" {...props} />,
                                           strong: ({node, ...props}) => <strong className="text-sky-400 font-bold" {...props} />
@@ -948,7 +991,7 @@ function App() {
                               )}
                           </div>
                       ))}
-                      {['thinking', 'answering'].includes(aiState) && (
+                      {['thinking'].includes(aiState) && (
                           <div className="max-w-[85%] bg-[#151515] border border-white/5 text-slate-400 self-start rounded-xl p-2 md:p-3 text-[9px] md:text-[10px] rounded-bl-sm mr-auto flex items-center gap-2">
                               <div className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse"></div> Receiving...
                           </div>
@@ -964,8 +1007,9 @@ function App() {
                           </button>
                       ) : (
                           <form onSubmit={triggerAiQuery} className="relative flex items-center">
-                              <input type="text" value={userQuery} onChange={(e) => setUserQuery(e.target.value)} disabled={['intro', 'thinking', 'answering'].includes(aiState)} placeholder="Ask Salik's Twin..." className="w-full bg-[#111] border border-white/10 focus:border-sky-500/50 rounded-lg pl-4 pr-12 py-3 text-xs text-white outline-none transition-all placeholder:text-slate-600 disabled:opacity-50" />
-                              <button type="submit" disabled={!userQuery.trim() || ['intro', 'thinking', 'answering'].includes(aiState)} className="absolute right-1.5 w-8 h-8 rounded-md bg-sky-500/10 text-sky-400 flex items-center justify-center hover:bg-sky-500 hover:text-black transition-all disabled:opacity-0">
+                              {/* UPDATE: Input is not disabled when answering, allows interrupting */}
+                              <input type="text" value={userQuery} onChange={(e) => setUserQuery(e.target.value)} disabled={['intro', 'thinking'].includes(aiState)} placeholder="Ask Salik's Twin..." className="w-full bg-[#111] border border-white/10 focus:border-sky-500/50 rounded-lg pl-4 pr-12 py-3 text-xs text-white outline-none transition-all placeholder:text-slate-600 disabled:opacity-50" />
+                              <button type="submit" disabled={!userQuery.trim() || ['intro', 'thinking'].includes(aiState)} className="absolute right-1.5 w-8 h-8 rounded-md bg-sky-500/10 text-sky-400 flex items-center justify-center hover:bg-sky-500 hover:text-black transition-all disabled:opacity-0">
                                   <span className="font-bold text-base">↗</span>
                               </button>
                           </form>
