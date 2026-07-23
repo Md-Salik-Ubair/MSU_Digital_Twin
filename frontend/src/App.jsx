@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 // Original Video & Image Assets Restored
 import avatarImg from './assets/avatar.jpg';
@@ -339,8 +340,9 @@ function App() {
     const responseText = data.ai_response || "Connection established.";
     const audioUrl = data.audio_url;
     
+    // We only clean text for the scroll trigger logic, we save the RAW text to chatHistory for markdown
     const cleanSub = responseText.replace(/[*#`]/g, '').replace(/\[(.*?)\]\(.*?\)/g, '$1');
-    setChatHistory(prev => [...prev, { role: 'ai', text: cleanSub }]);
+    setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]);
     
     if (audioUrl) {
         setAiState('answering');
@@ -930,7 +932,20 @@ function App() {
                       )}
                       {chatHistory.map((chat, idx) => (
                           <div key={idx} className={`max-w-[90%] rounded-xl p-3 text-[11px] md:text-[12px] leading-relaxed shadow-lg ${chat.role === 'user' ? 'bg-sky-600 text-white self-end rounded-br-sm ml-auto' : 'bg-[#151515] border border-white/5 text-slate-200 self-start rounded-bl-sm mr-auto'}`}>
-                              {chat.text}
+                              {chat.role === 'ai' ? (
+                                  <ReactMarkdown
+                                      components={{
+                                          p: ({node, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
+                                          ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                                          li: ({node, ...props}) => <li className="text-slate-300" {...props} />,
+                                          strong: ({node, ...props}) => <strong className="text-sky-400 font-bold" {...props} />
+                                      }}
+                                  >
+                                      {chat.text}
+                                  </ReactMarkdown>
+                              ) : (
+                                  chat.text
+                              )}
                           </div>
                       ))}
                       {['thinking', 'answering'].includes(aiState) && (
