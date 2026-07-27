@@ -291,7 +291,6 @@ function App() {
     if (thinkingRef.current) { thinkingRef.current.pause(); thinkingRef.current.currentTime = 0; }
   };
 
-  // PROFESSIONAL UPDATE: Stop ongoing response immediately
   const handleStopResponse = () => {
     if (['intro', 'answering'].includes(aiState)) {
         stopAllAudio();
@@ -363,7 +362,6 @@ function App() {
     if (aiState === 'thinking') setAiState('idle_waiting');
   };
 
-  // FIX 2: Perfect Audio-Video Sync Logic
   const playBackendStream = (data) => {
     stopAllAudio(); 
 
@@ -780,9 +778,29 @@ function App() {
                      </div>
                    ))}
                    
-                   <div className="space-y-1">
-                       <label className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase">Instagram Link</label>
-                       <input type="url" value={socialForm.instagram || ''} onChange={(e) => setSocialForm({...socialForm, instagram: e.target.value})} className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
+                   {/* FIXED: ADDED MISSING SOCIAL LINKS */}
+                   <div className="space-y-3 pt-2">
+                       <h3 className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-white/10 pb-2">Social & Contact Links</h3>
+                       
+                       <div className="space-y-1">
+                           <label className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase">Email Address</label>
+                           <input type="email" value={socialForm.email || ''} onChange={(e) => setSocialForm({...socialForm, email: e.target.value})} className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
+                       </div>
+                       
+                       <div className="space-y-1">
+                           <label className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase">LinkedIn Profile</label>
+                           <input type="url" value={socialForm.linkedin || ''} onChange={(e) => setSocialForm({...socialForm, linkedin: e.target.value})} className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
+                       </div>
+                       
+                       <div className="space-y-1">
+                           <label className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase">GitHub Profile</label>
+                           <input type="url" value={socialForm.github || ''} onChange={(e) => setSocialForm({...socialForm, github: e.target.value})} className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
+                       </div>
+
+                       <div className="space-y-1">
+                           <label className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase">Instagram Link</label>
+                           <input type="url" value={socialForm.instagram || ''} onChange={(e) => setSocialForm({...socialForm, instagram: e.target.value})} className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
+                       </div>
                    </div>
 
                    <textarea rows={4} value={profileForm.profile_summary || ''} onChange={(e) => setProfileForm({...profileForm, profile_summary: e.target.value})} placeholder="Professional Summary" className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none resize-none transition-colors" />
@@ -933,7 +951,6 @@ function App() {
                   <span className="text-[10px] md:text-xs font-bold text-white tracking-widest uppercase">Digital Twin Agent</span>
               </div>
               <div className="flex items-center gap-2">
-                  {/* PROFESSIONAL UPDATE: Stop Button (Only shows when speaking/intro) */}
                   {['intro', 'answering'].includes(aiState) && (
                       <button onClick={handleStopResponse} title="Stop ongoing response" className="flex items-center justify-center w-7 h-7 bg-red-950/30 text-red-400 rounded-md transition-colors border border-red-500/30 hover:bg-red-500 hover:text-white hover:border-red-600 shadow-[0_0_10px_rgba(239,68,68,0.2)]">
                           <span className="text-sm">■</span>
@@ -1007,7 +1024,6 @@ function App() {
                           </button>
                       ) : (
                           <form onSubmit={triggerAiQuery} className="relative flex items-center">
-                              {/* UPDATE: Input is not disabled when answering, allows interrupting */}
                               <input type="text" value={userQuery} onChange={(e) => setUserQuery(e.target.value)} disabled={['intro', 'thinking'].includes(aiState)} placeholder="Ask Salik's Twin..." className="w-full bg-[#111] border border-white/10 focus:border-sky-500/50 rounded-lg pl-4 pr-12 py-3 text-xs text-white outline-none transition-all placeholder:text-slate-600 disabled:opacity-50" />
                               <button type="submit" disabled={!userQuery.trim() || ['intro', 'thinking'].includes(aiState)} className="absolute right-1.5 w-8 h-8 rounded-md bg-sky-500/10 text-sky-400 flex items-center justify-center hover:bg-sky-500 hover:text-black transition-all disabled:opacity-0">
                                   <span className="font-bold text-base">↗</span>
