@@ -296,11 +296,10 @@ function App() {
       newData[index] = newData[newIndex];
       newData[newIndex] = temp;
       
-      // INSTANT Optimistic UI Update (Buttery Smooth)
+      // INSTANT Optimistic UI Update
       setBackendData({...backendData, [category]: newData});
       showToast(`Position shifted. Syncing to matrix...`);
       
-      // Push to backend endpoint silently
       fetch(`${API_BASE_URL}/api/portfolio/reorder`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -310,7 +309,6 @@ function App() {
               showToast("Server sync failed. Awaiting backend deployment.");
           }
       }).catch(() => {
-          // Suppress error alert so UI feels premium, just log it. Backend needs to be built.
           console.log("Reorder API not ready yet. Local state updated.");
       });
   };
@@ -536,14 +534,15 @@ function App() {
       }
   };
 
-  // 11/10 SMART EMAIL HANDLER (Direct Mailto Native Route)
+  // 11/10 SMART EMAIL HANDLER (Direct Gmail Web Fallback)
   const handleEmailClick = (e) => {
       e.preventDefault();
       const email = backendData?.social_channels?.email;
       if (email) {
           navigator.clipboard.writeText(email);
-          showToast(`Email Copied. Opening Mail Client...`);
-          window.location.href = `mailto:${email}`;
+          showToast(`Email Copied. Redirecting to Gmail...`);
+          // Using Universal Gmail Compose Link
+          window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${email}`, '_blank');
       }
   };
 
@@ -974,7 +973,7 @@ function App() {
               </div>
             </div>
 
-            {/* 🚀 FIXED: PROFESSIONAL GRID LISTS WITH IN-CARD SKILL ICONS & ADAPTIVE MOBILE SCROLL 🚀 */}
+            {/* 🚀 FIXED: PROFESSIONAL GRID LISTS (STANDARD VERTICAL GRID FOR PERFECT ASPECT RATIO) 🚀 */}
             {['experiences', 'projects', 'education', 'certifications_and_achievements'].map((sec) => {
               if (!backendData || !backendData[sec] || backendData[sec].length === 0) return null;
               const displayTitle = sec.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -984,19 +983,19 @@ function App() {
                      <div className="w-2 h-2 bg-sky-500 rounded-full" /> {displayTitle}
                   </h2>
                   
-                  <div className="flex overflow-x-auto snap-x snap-mandatory md:grid md:grid-cols-2 gap-4 md:gap-6 pb-6 md:pb-0 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                     {(backendData[sec] || []).map((item) => {
                       return (
                         <div 
                             key={item.id} 
                             onClick={() => setViewingNode({...item, _category: sec})}
-                            className="min-w-[85vw] md:min-w-0 snap-center shrink-0 group cursor-pointer border border-white/10 bg-white/[0.02] backdrop-blur-md rounded-2xl md:rounded-3xl p-6 md:p-8 hover:border-sky-500/50 hover:bg-white/[0.04] transition-all duration-300 shadow-xl hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(14,165,233,0.15)] flex flex-col justify-between"
+                            className="group cursor-pointer border border-white/10 bg-white/[0.02] backdrop-blur-md rounded-2xl md:rounded-3xl p-5 md:p-8 hover:border-sky-500/50 hover:bg-white/[0.04] transition-all duration-300 shadow-xl hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(14,165,233,0.15)] flex flex-col justify-between relative overflow-hidden"
                         >
-                          <div className="space-y-3 md:space-y-4 pointer-events-none">
+                          <div className="space-y-3 md:space-y-4 pointer-events-none z-10 relative">
                             {item.image_urls && item.image_urls.length > 0 && (
-                              <div className="w-full h-40 md:h-48 rounded-xl overflow-hidden mb-3 md:mb-4 border border-white/10 relative bg-[#050505]">
+                              <div className="w-full h-48 md:h-56 rounded-xl overflow-hidden mb-4 border border-white/10 relative bg-[#050505]">
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
-                                  <img src={item.image_urls[0]} alt="Project Preview" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-90 group-hover:opacity-100" />
+                                  <img src={item.image_urls[0]} alt="Preview" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-90 group-hover:opacity-100" />
                               </div>
                             )}
                             <div className="flex items-start justify-between gap-3 md:gap-4">
@@ -1005,7 +1004,6 @@ function App() {
                             </div>
                             <p className="text-xs md:text-sm font-semibold text-indigo-400">{item.organization_or_issuer}</p>
                             
-                            {/* 🚀 INJECTED SKILL ICONS INSIDE CARDS 🚀 */}
                             {item.tag_or_skills_mapped && (
                                 <div className="flex flex-wrap gap-1.5 pt-1">
                                     {item.tag_or_skills_mapped.split(',').slice(0, 5).map((skill, i) => (
@@ -1021,7 +1019,7 @@ function App() {
                             <p className="text-xs md:text-sm text-slate-400 leading-relaxed line-clamp-3 mt-2">{item.description}</p>
                           </div>
                           
-                          <div className="mt-4 md:mt-6 flex justify-end pt-3 md:pt-4 border-t border-white/5 pointer-events-none">
+                          <div className="mt-4 md:mt-6 flex justify-end pt-3 md:pt-4 border-t border-white/5 pointer-events-none z-10 relative">
                               <span className="text-[10px] md:text-xs font-bold text-sky-500 group-hover:translate-x-2 transition-transform">View Details ↗</span>
                           </div>
                         </div>
