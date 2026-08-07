@@ -182,3 +182,39 @@ def remove_dynamic_item(category, item_id):
         {"$pull": {category: {"id": int(item_id)}}}
     )
     return result.modified_count > 0
+
+def reorder_dynamic_items(category, item_ids):
+    """
+    11/10 UPGRADE: Reorders the nodes in a category based on the provided array of IDs.
+    Includes a safety fallback to prevent data loss.
+    """
+    valid_categories = ["experiences", "projects", "education", "certifications_and_achievements"]
+    if category not in valid_categories:
+        return False
+        
+    doc = _get_document()
+    current_items = doc.get(category, [])
+    
+    # Create O(1) lookup dictionary
+    item_map = {item["id"]: item for item in current_items}
+    
+    reordered_items = []
+    
+    # 1. Append items in the exact order specified by the frontend
+    for item_id in item_ids:
+        if item_id in item_map:
+            reordered_items.append(item_map[item_id])
+            
+    # 2. Safety Fallback: If any item exists in DB but was missing from frontend payload, append it
+    provided_ids = set(item_ids)
+    for item in current_items:
+        if item["id"] not in provided_ids:
+            reordered_items.append(item)
+            
+    # Execute MongoDB Atomic Update
+    result = collection.update_one(
+        {"_id": "global_state"},
+        {"$set": {category: reordered_items}}
+    )
+    
+    return True

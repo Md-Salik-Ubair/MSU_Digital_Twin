@@ -1,4 +1,4 @@
-# Production Portfolio Data Routers linked with MongoDB Core
+# Production-Grade Portfolio Data Routers linked with MongoDB Core
 import threading
 from flask import Blueprint, jsonify, request
 
@@ -9,7 +9,8 @@ from app.services.storage_service import (
     update_dynamic_item, 
     update_profile_core,
     update_social_channels,
-    update_family_meta
+    update_family_meta,
+    reorder_dynamic_items  # 🚀 INJECTED: The new Master Reorder function
 )
 
 from app.services.rag_service import build_knowledge_base
@@ -82,6 +83,34 @@ def create_portfolio_node(category):
             "message": f"New asset node successfully committed to {category}.",
             "inserted": inserted_node
         }), 201
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ==========================================
+# 🚀 11/10 UPGRADE: THE REORDER ROUTE
+# ==========================================
+@portfolio_bp.route('/reorder', methods=['POST'])
+def reorder_portfolio_nodes():
+    """Syncs the structural array order from the Admin Hub Drag/Arrow actions."""
+    try:
+        data = request.get_json() or {}
+        category = data.get("category")
+        item_ids = data.get("items", [])
+
+        valid_grids = ["experiences", "projects", "education", "certifications_and_achievements"]
+        if category not in valid_grids or not isinstance(item_ids, list):
+            return jsonify({"success": False, "error": "Invalid category or malformed array index."}), 400
+
+        is_reordered = reorder_dynamic_items(category, item_ids)
+        
+        if not is_reordered:
+            return jsonify({"success": False, "error": "Matrix desync: Failed to update node order."}), 500
+
+        trigger_vector_sync() # Silent AI Update
+        return jsonify({
+            "success": True,
+            "message": f"Cluster sequence for {category} successfully synced."
+        }), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
