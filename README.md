@@ -1,100 +1,149 @@
 <div align="center">
-  <img src="./ReadmeAssets/Hero.jpeg" alt="Project Hero" width="100%" />
+  <img src="ReadmeAssets/01_hero.png" alt="Project Hero" width="100%" />
 </div>
 
-<h1 align="center">Production-Grade Virtual Presence & Real-Time RAG Context Engine</h1>
+<h1 align="center">SALIK AI-SYSTEM: Production-Grade RAG Portfolio & Digital Twin</h1>
 
 <p align="center">
-  A highly advanced, production-ready web portfolio featuring a <b>localized Retrieval-Augmented Generation (RAG) Digital Twin</b>. Engineered to decouple heavy asynchronous AI orchestration from the client interface, providing seamless, real-time interactive intelligence backed by an editable database architecture.
+  <b>Architected by Md Salik Ubair</b><br/>
+  A next-generation, ultra-scalable web portfolio featuring a <b>localized Retrieval-Augmented Generation (RAG) Digital Twin</b>, an <b>AI Outreach Synthesizer</b>, and a <b>Dynamic Admin Control Hub</b>. Engineered to decouple heavy asynchronous AI orchestration from the client interface, providing seamless, real-time interactive intelligence backed by an editable database matrix.
 </p>
+
+<div align="center">
+  <img src="https://img.shields.io/badge/Architecture-RAG-sky" alt="RAG Architecture" />
+  <img src="https://img.shields.io/badge/Frontend-React_18_%7C_Tailwind_CSS-blue" alt="Frontend" />
+  <img src="https://img.shields.io/badge/Backend-Python_%7C_Flask_%7C_MongoDB-emerald" alt="Backend" />
+  <img src="https://img.shields.io/badge/LLM-Groq_Llama--3.3--70B-purple" alt="LLM" />
+  <img src="https://img.shields.io/badge/Embeddings-Google_Gemini_Text--004-red" alt="Embeddings" />
+</div>
 
 ---
 
 ## 🚀 Architectural Innovations & Core Features
 
-### 1. The Digital Twin (Real-Time AI Agent)
+### 1. The Digital Twin (Real-Time RAG Agent)
 <div align="center">
-  <img src="./ReadmeAssets/Twin.jpeg" alt="Digital Twin Interface" width="90%" />
+  <img src="ReadmeAssets/03_rag_twin.png" alt="Digital Twin Interface" width="90%" />
 </div>
 
-*   **Inference Engine:** Utilizes `Llama-3 (70B)` via Groq API for ultra-low latency, intelligent response synthesis.
-*   **Semantic Matrix:** Localized `ChromaDB` vector store powered by Google Generative AI Embeddings (`text-embedding-004`).
-*   **Synchronized Audio-Visuals:** Integrates `Edge-TTS` for real-time audio streaming. Features a hardware-accelerated video state controller that dynamically transitions a virtual avatar between idle, thinking, and speaking modes in absolute lockstep with the text-to-speech rendering.
-*   **Audio State Lock:** Bypasses consecutive query overlapping via aggressive Audio object source flushing and precise execution tracking.
+*   **Inference Engine:** Utilizes `Llama-3.3 (70B)` via Groq API for ultra-low latency, intelligent response synthesis.
+*   **Semantic Matrix:** Localized `ChromaDB` vector store powered by Google Generative AI Embeddings (`text-embedding-004`) with `RecursiveCharacterTextSplitter` for crash-proof data ingestion.
+*   **Hidden Context Embedding:** Deep technical documentation (`hidden_readme`) is embedded per database node. The AI autonomously understands complex underlying architectures without cluttering the public UI.
+*   **Synchronized Audio-Visuals:** Integrates `Edge-TTS` for real-time audio streaming. Features a hardware-accelerated video state controller mapping an avatar between idle, thinking, and speaking modes.
+*   **Zero-Hallucination Guardrails:** Hardcoded ground-truth metrics (dynamic age, verified project counts) injected directly into the LLM context at runtime.
 
-### 2. Cinematic Node Exploration
+### 2. AI Outreach Synthesizer (One-Shot Copywriting)
 <div align="center">
-  <img src="./ReadmeAssets/Node.jpg" alt="Cinematic Node Modal" width="90%" />
+  <img src="ReadmeAssets/04_synthesizer_1.png" alt="Synthesizer Input State" width="49%" />
+  <img src="ReadmeAssets/04_synthesizer_2.png" alt="Synthesizer Generated State" width="49%" />
 </div>
 
-*   Immersive, deep-dive modal views for individual database nodes (Projects, Experiences, Education).
-*   Engineered with window history state listeners (popstate event routing) to seamlessly trap and handle manual mobile back-navigation, securely closing viewport modals rather than crashing the global application runtime context.
-*   Automated client-side utility that dynamically maps and pulls official developer technology logos from the Devicon CDN based on database array strings.
+*   **Contextual Overrides:** A specialized modal that bypasses standard RAG protocols via Prompt Injection, transforming the core engine into an expert corporate copywriter.
+*   **Privacy-First Generation:** Drafts highly professional, tailored outreach emails (e.g., job interviews, freelance collaborations) instantly based on pure intent without logging user data.
+*   **Direct Routing:** Seamlessly routes generated intent to native applications (Direct Gmail Web Compose, LinkedIn, WhatsApp, Instagram).
 
-### 3. Dynamic Admin Control Hub & Self-Healing Data
+### 3. Dynamic Admin Control Hub & Matrix Synchronization
 <div align="center">
-  <img src="./ReadmeAssets/AdminHub.jpg" alt="Admin Hub Control" width="49%" />
-  <img src="./ReadmeAssets/AdminEdit.jpg" alt="Admin Edit Mode" width="49%" />
+  <img src="ReadmeAssets/05_admin_hub.png" alt="Admin Hub Control" width="90%" />
 </div>
 
-*   **Zero-Downtime Reconstructions:** A secure, authenticated dashboard linked to a persistent `MongoDB` layer. Enables the native manipulation of portfolio nodes to instantly purge and reconstruct the local semantic vector store on the fly without system downtime.
-*   **Asset Management:** Integrated workflows for seamless display picture and project thumbnail updates.
+*   **Zero-Downtime Reconstructions:** Secure `MongoDB` integration enabling native CRUD manipulation. Saving data instantly triggers background threading to re-index the RAG Vector DB.
+*   **O(1) Node Reordering:** Smooth, optimistic UI node sequencing (`↑` / `↓` indices) dynamically synced to the MongoDB pipeline.
+*   **Master Resume Pipeline:** Direct ingestion of raw master CV text to instantly update the AI's internal memory matrix.
 
+### 4. Adaptive Cinematic UI & Boot Sequence
 <div align="center">
-  <img src="./ReadmeAssets/Login.jpg" alt="Secure Authentication Portal" width="60%" />
+  <img src="ReadmeAssets/02_bootloader.png" alt="System Bootloader" width="49%" />
+  <img src="ReadmeAssets/06_mobile.png" alt="Mobile Adaptive Snap View" width="49%" />
 </div>
+
+*   **Matrix Bootloader:** Simulated cyber-terminal pre-fetching sequence masking standard server cold-start latencies.
+*   **Responsive Engine:** Fluid grid-layouts on PC that seamlessly adapt into horizontal snap-scrolling cards on mobile devices for flawless UX.
+*   **Custom Cyber Toasts:** Globally deployed sleek, matrix-styled toast notifications replacing standard browser alerts.
 
 ---
 
-## ⚙️ Core Technology Stack
+## ⚙️ System Architecture Data Flow
 
-**Frontend Interface Layer:**
-*   React.js
-*   Tailwind CSS v4
-*   Hardware-Accelerated Video Elements
-*   Devicon CDN Dynamic Mapping
+```text
+[ Visitor / Recruiter ]
+        │
+        ├───► [ React 18 + Tailwind Frontend UI ]
+        │            │
+        │            ├───► [ Initiate Outreach ] ───► [ LLM Synthesizer Override ] ───► [ Native Routing ]
+        │            │
+        │            └───► [ Digital Twin Query ]
+        │                         │
+        └─────────────────────────┼─────────────────────────────────────────────┐
+                                  ▼                                             │
+                     [ Flask REST Backend API ]                                 │
+                                  │                                             │
+            ┌─────────────────────┴─────────────────────┐                       │
+            ▼                                           ▼                       │
+  [ MongoDB Cloud State ]                   [ LangChain RAG Engine ]            │
+ (Master Schema / Nodes)                                │                       │
+            │                                           ├───► Google Gemini Embeddings (768-D)
+            │                                           ├───► ChromaDB Vector Store
+            └──────► [ Background Vector Sync ] ────────┼───► Truth Metric Injection
+                                                        │
+                                                        ▼
+                                             [ Groq Llama-3.3-70B ]
+                                                        │
+                                                        ▼
+                                             [ Edge-TTS Audio Sync ]
+                                                        │
+                                                        ▼
+                                          [ Streamed Response to Frontend ]
+```
+# 🛠️ Core Technology Stack
 
-**Backend Execution Core:**
-*   Python (Flask)
-*   Gunicorn (WSGI Gateway for multi-threaded error mitigation)
-*   ChromaDB (Vector Similarity Search)
-*   MongoDB (Persistent Storage & Structural Data)
-*   Groq API (Llama3) & Google Gemini API (Embeddings)
+## Frontend Interface Layer
+- **React.js 18 (Vite)**
+- **Tailwind CSS v4** (Grainy Gradients, Cyber-Aesthetics)
+- **React-Markdown** (Dynamic Text Rendering)
+- **Hardware-Accelerated Video Elements**
+
+## Backend Execution Core
+- **Python** (Flask, Gunicorn WSGI Gateway)
+- **ChromaDB** (Vector Similarity Search)
+- **MongoDB** (Persistent Storage & Structural Data)
+- **LangChain** (Pipeline Orchestration)
+- **Groq API** (Llama-3.3-70b-versatile)
+- **Google Generative AI** (text-embedding-004)
 
 ---
 
-## 🛠️ Local Deployment Architecture
+# 💻 Local Deployment Architecture
 
-### Prerequisites
-*   Node.js (v16+)
-*   Python 3.9+
-*   MongoDB Instance (Local or Cloud Atlas)
+## Prerequisites
+- Node.js (v16+)
+- Python 3.9+
+- MongoDB Instance (Local or Cloud Atlas)
 
-### 1. Backend Initialization
+---
+
+## 1. Backend Initialization
+
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+
 ```
-## Establish the environment variables by creating a .env file in the backend root:
+# Create a .env file in the backend/ root:
 MONGO_URI=your_mongodb_connection_string
-GEMINI_API_KEY=your_google_api_key
+GEMINI_API_KEY=your_google_gemini_api_key
 GROQ_API_KEY=your_groq_api_key
-JWT_SECRET=your_secure_cryptographic_secret
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=your_secure_password
-# Execute the Server:
+##### Run the server:
 python run.py
 # 2. Frontend Initialization
 cd frontend
 npm install
-# Configure the API routing by creating a .env file in the frontend root:
-VITE_API_URL=[http://127.0.0.1:5000]
-
-# Deploy the Development Server:
+### Create a .env file in the frontend/ root:
+VITE_API_URL=http://127.0.0.1:5000
+### Start the development server:
 npm run dev
-
 ---
 <div align="center">
   <p>Architected and Engineered by <b>Md Salik Ubair</b></p>
