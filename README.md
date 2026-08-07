@@ -2,7 +2,7 @@
   <img src="ReadmeAssets/01_hero.png" alt="Project Hero" width="100%" />
 </div>
 
-<h1 align="center">SALIK AI-SYSTEM: Production-Grade RAG Portfolio & Digital Twin</h1>
+<h1 align="center">Production-Grade RAG Portfolio & Digital Twin</h1>
 
 <p align="center">
   <b>Architected by Md Salik Ubair</b><br/>
