@@ -481,34 +481,28 @@ function App() {
       <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen" />
       <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none mix-blend-overlay"></div>
 
-      {/* 🚀 PREMIUM MSU MONOGRAM NAVBAR 🚀 */}
-      <nav className="fixed w-full border-b border-white/5 bg-black/50 backdrop-blur-2xl z-50 px-4 md:px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4 group cursor-pointer" onClick={() => handleNavClick('portfolio', 'top')}>
-          <div className="relative flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-[#050505] border border-white/10 rounded-xl overflow-hidden shadow-[0_0_15px_rgba(14,165,233,0.15)] group-hover:shadow-[0_0_25px_rgba(14,165,233,0.4)] group-hover:border-sky-500/30 transition-all duration-500">
-             <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 to-transparent"></div>
-             <span className="relative font-serif font-black italic tracking-tighter text-lg md:text-xl flex select-none">
-                <span className="text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.3)] z-20 translate-x-[2px]">M</span>
-                <span className="text-sky-500 -ml-1 mt-[2px] drop-shadow-[0_2px_10px_rgba(14,165,233,0.6)] z-30">S</span>
-                <span className="text-slate-400 -ml-[3px] flex items-end z-10 -mb-[1px]">U</span>
-             </span>
+      {/* 🚀 PRO-ENGINEER NAVBAR & LOGO 🚀 */}
+      <nav className="fixed w-full border-b border-white/5 bg-[#020202]/80 backdrop-blur-2xl z-50 px-4 md:px-8 py-4 flex items-center justify-between transition-all duration-300">
+        <div className="flex items-center gap-3 group cursor-pointer" onClick={() => handleNavClick('portfolio', 'top')}>
+          <div className="flex items-center justify-center w-8 h-8 md:w-10 md:h-10 bg-white text-black rounded-sm group-hover:bg-sky-500 transition-colors duration-300">
+             <span className="font-sans font-black tracking-tighter text-sm md:text-base">SU.</span>
           </div>
-          
           <div className="flex flex-col justify-center">
-            <span className="text-xs md:text-sm font-extrabold tracking-[0.2em] text-white leading-tight drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] uppercase">
-              Salik<span className="text-sky-400 font-light ml-1">Ubair</span>
+            <span className="text-xs md:text-sm font-bold tracking-[0.15em] text-slate-100 uppercase">
+              Md Salik <span className="text-sky-500">Ubair</span>
             </span>
-            <span className="text-[7px] md:text-[8px] text-slate-500 uppercase tracking-[0.3em] font-mono mt-0.5">
-              Intelligence Portfolio
+            <span className="text-[8px] md:text-[9px] text-slate-500 uppercase tracking-[0.2em] font-mono mt-0.5">
+              AI Engineer System
             </span>
           </div>
         </div>
 
-        <div className="hidden lg:flex items-center gap-6">
+        <div className="hidden lg:flex items-center gap-8">
             {navLinks.map((link, idx) => (
                 <button 
                     key={idx}
                     onClick={() => handleNavClick(link.view, link.section)}
-                    className={`text-[11px] font-bold uppercase tracking-[0.2em] transition-all hover:text-sky-400`}
+                    className="text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400 hover:text-sky-400 transition-colors"
                 >
                     {link.label}
                 </button>
@@ -523,7 +517,7 @@ function App() {
       </nav>
 
       {isMobileMenuOpen && (
-          <div className="fixed top-16 left-0 w-full bg-[#050505]/90 backdrop-blur-xl border-b border-white/10 z-40 lg:hidden flex flex-col p-4 space-y-2 shadow-2xl animate-fadeIn">
+          <div className="fixed top-[72px] left-0 w-full bg-[#050505]/95 backdrop-blur-xl border-b border-white/10 z-40 lg:hidden flex flex-col p-4 space-y-2 shadow-2xl animate-fadeIn">
               {navLinks.map((link, idx) => (
                   <button 
                       key={idx}
@@ -599,12 +593,22 @@ function App() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto p-4 md:p-8 pt-24 md:pt-32 pb-32 relative z-10">
+      <main className="max-w-7xl mx-auto p-4 md:p-8 pt-24 md:pt-32 pb-16 relative z-10">
         {loading ? (
-          <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
-            <div className="h-10 w-10 border-2 border-t-transparent border-sky-400 rounded-full animate-spin" />
-            <p className="text-xs text-sky-400/80 tracking-widest font-mono uppercase animate-pulse">Loading Database...</p>
+          
+          /* 🚀 PRO BOOT SEQUENCE 🚀 */
+          <div className="flex flex-col items-center justify-center h-[70vh] space-y-6">
+            <div className="relative flex items-center justify-center w-16 h-16">
+               <div className="absolute inset-0 border-2 border-sky-500/20 rounded-lg animate-[spin_3s_linear_infinite]"></div>
+               <div className="absolute inset-2 border-2 border-indigo-500/40 rounded-lg animate-[spin_2s_linear_infinite_reverse]"></div>
+               <span className="font-sans font-black tracking-tighter text-sky-400">SU.</span>
+            </div>
+            <div className="text-center space-y-2">
+                <p className="text-xs text-sky-400 tracking-[0.3em] font-mono uppercase animate-pulse">Initializing System...</p>
+                <p className="text-[9px] text-slate-500 font-mono tracking-widest">Waking up RAG Backend Engine</p>
+            </div>
           </div>
+
         ) : currentView === 'portfolio' ? (
           
           <div className="space-y-12 md:space-y-16 animate-fadeIn">
@@ -730,6 +734,22 @@ function App() {
                 </div>
               );
             })}
+            
+            {/* 🚀 PRO FOOTER CTA 🚀 */}
+            <div className="mt-20 pt-12 md:pt-16 border-t border-white/5 text-center space-y-6 md:space-y-8 relative overflow-hidden">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-sky-500/30 to-transparent"></div>
+                <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight">Ready to build the future?</h2>
+                <p className="text-slate-400 text-xs md:text-sm max-w-xl mx-auto leading-relaxed">
+                   Interact with my Digital Twin to schedule a technical meeting, or reach out through my professional channels to discuss AI architecture, scalable engineering, and data science.
+                </p>
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-4">
+                    <button onClick={() => setIsChatOpen(true)} className="w-full sm:w-auto bg-sky-600 hover:bg-sky-500 text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-[0_0_20px_rgba(14,165,233,0.2)] hover:shadow-[0_0_30px_rgba(14,165,233,0.4)] text-xs md:text-sm uppercase tracking-widest">Consult AI Twin</button>
+                    {backendData?.social_channels?.email && (
+                        <a href={`mailto:${backendData.social_channels.email}`} className="w-full sm:w-auto bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold px-8 py-3.5 rounded-xl transition-all text-xs md:text-sm uppercase tracking-widest">Direct Email</a>
+                    )}
+                </div>
+            </div>
+
           </div>
         ) : !isAuthenticated ? (
           
@@ -778,7 +798,6 @@ function App() {
                      </div>
                    ))}
                    
-                   {/* FIXED: ADDED MISSING SOCIAL LINKS */}
                    <div className="space-y-3 pt-2">
                        <h3 className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-white/10 pb-2">Social & Contact Links</h3>
                        
@@ -975,6 +994,23 @@ function App() {
                   <video ref={thinkingRef} src={thinkingVideo} preload="none" loop={false} playsInline onEnded={handleThinkingEnded} className={`absolute w-full h-full object-cover object-top md:object-center transition-opacity duration-500 ${showThinking ? 'opacity-100' : 'opacity-0'}`} />
                   <video ref={speakingRef} src={speakingVideo} preload="none" loop={aiState === 'answering'} playsInline onEnded={handleSpeakingEnded} className={`absolute w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showSpeaking ? 'opacity-100' : 'opacity-0'}`} />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent pointer-events-none z-10" />
+                  
+                  {/* 🚀 PRO RAG ENGINE VISUALIZER 🚀 */}
+                  {aiState === 'thinking' && (
+                      <div className="absolute top-4 left-4 right-4 z-20 bg-black/80 border border-sky-500/30 rounded-lg p-3 font-mono text-[9px] md:text-[10px] text-sky-400 backdrop-blur-md shadow-[0_0_20px_rgba(0,0,0,0.8)] flex flex-col gap-1.5 overflow-hidden">
+                          <div className="flex items-center justify-between border-b border-sky-500/30 pb-1.5 mb-1">
+                              <div className="flex items-center gap-2">
+                                  <span className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-pulse"></span>
+                                  <span className="text-slate-200 font-bold uppercase tracking-wider">RAG_Engine</span>
+                              </div>
+                              <span className="text-slate-500">v2.4.1</span>
+                          </div>
+                          <span className="text-slate-300 opacity-90">{">"} Vectorizing user query...</span>
+                          <span className="text-slate-400 opacity-80">{">"} Executing FAISS similarity search...</span>
+                          <span className="text-slate-400 opacity-80">{">"} Retrieving top contextual nodes...</span>
+                          <span className="text-emerald-400 animate-pulse mt-1">{">"} Synthesizing LLM response...</span>
+                      </div>
+                  )}
               </div>
 
               {/* CHAT INTERFACE AREA (Fully Scrollable) */}
