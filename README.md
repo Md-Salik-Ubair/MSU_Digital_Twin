@@ -53,14 +53,16 @@
 
 ### 4. Adaptive Cinematic UI & Boot Sequence
 <div align="center">
-  <img src="ReadmeAssets/02_bootloader.png" alt="System Bootloader" width="49%" />
-  <img src="ReadmeAssets/06_mobile.png" alt="Mobile Adaptive Snap View" width="49%" />
+  <img src="ReadmeAssets/02_bootloader.png" alt="System Bootloader" width="90%" />
+</div>
+<br/>
+<div align="center">
+  <img src="ReadmeAssets/06_mobile.png" alt="Mobile Adaptive Snap View" width="35%" />
 </div>
 
 *   **Matrix Bootloader:** Simulated cyber-terminal pre-fetching sequence masking standard server cold-start latencies.
 *   **Responsive Engine:** Fluid grid-layouts on PC that seamlessly adapt into horizontal snap-scrolling cards on mobile devices for flawless UX.
 *   **Custom Cyber Toasts:** Globally deployed sleek, matrix-styled toast notifications replacing standard browser alerts.
-
 ---
 
 ## ⚙️ System Architecture Data Flow
