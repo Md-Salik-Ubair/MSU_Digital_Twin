@@ -131,8 +131,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 ```
-# Create a .env file in the backend/ 
-### root:
+# Create a .env file in the backend/ root:
 ```bash
 MONGO_URI=your_mongodb_connection_string
 GEMINI_API_KEY=your_google_gemini_api_key
