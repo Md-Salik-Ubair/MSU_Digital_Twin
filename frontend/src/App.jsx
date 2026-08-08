@@ -81,7 +81,7 @@ function App() {
   const [tempLink, setTempLink] = useState({ label: '', url: '' });
 
   // ---------------------------------------------------------
-  // GOD-TIER TERMINAL BOOT SEQUENCE
+  // GOD-TIER TERMINAL BOOT SEQUENCE (FIXED UNDEFINED BUG)
   // ---------------------------------------------------------
   useEffect(() => {
     if (!loading) return;
@@ -100,9 +100,13 @@ function App() {
     let i = 0;
     const interval = setInterval(() => {
         if (i < sequences.length) {
-            setBootLogs(prev => [...prev, `[${new Date().toISOString().split('T')[1].slice(0,8)}] ${sequences[i]}`]);
+            const timestamp = new Date().toISOString().split('T')[1].slice(0,8);
+            const logText = sequences[i];
+            setBootLogs(prev => [...prev, `[${timestamp}] ${logText}`]);
             setBootProgress(Math.floor(((i + 1) / sequences.length) * 100));
             i++;
+        } else {
+            clearInterval(interval);
         }
     }, 500); 
     
@@ -296,7 +300,7 @@ function App() {
       newData[index] = newData[newIndex];
       newData[newIndex] = temp;
       
-      // INSTANT Optimistic UI Update
+      // INSTANT Optimistic UI Update (Buttery Smooth)
       setBackendData({...backendData, [category]: newData});
       showToast(`Position shifted. Syncing to matrix...`);
       
