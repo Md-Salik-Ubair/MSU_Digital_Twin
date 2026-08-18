@@ -45,22 +45,30 @@ from langchain_chroma import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # -------------------------------------------------------------------
-# NEURAL ARCHITECTURE: STABLE EMBEDDINGS & LLM 
+# NEURAL ARCHITECTURE: STABLE EMBEDDINGS & AUTO-FALLBACK LLM ENGINE
 # -------------------------------------------------------------------
+# 1. Fixed Gemini Embeddings (Strictly text-embedding-004)
 embeddings = GoogleGenerativeAIEmbeddings(
-    model="models/text-embedding-004", 
-    google_api_key=gemini_api_key
+    model="text-embedding-004",  
+    google_api_key=os.getenv("GEMINI_API_KEY")
 )
-vector_store_dir = os.path.join(os.path.dirname(__file__), "../vector_store")
-CHROMA_SETTINGS = Settings(anonymized_telemetry=False, allow_reset=True)
 
-# Core Intelligence Engine (Groq Llama-3.3 70B)
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    api_key=os.getenv("GROQ_API_KEY"),
-    temperature=0.2, # Low temperature for strict factual accuracy
-    max_retries=3
-) 
+# 2. Multi-Tier Groq LLM Strategy (Primary + Fallback)
+_primary_llm = ChatGroq(
+    model_name="llama-3.3-70b-versatile",  # High Accuracy (Try First)
+    groq_api_key=os.getenv("GROQ_API_KEY"),
+    temperature=0.3
+)
+
+_fallback_llm = ChatGroq(
+    model_name="llama-3.1-8b-instant",  # High Speed / Safe Fallback
+    groq_api_key=os.getenv("GROQ_API_KEY"),
+    temperature=0.3
+)
+
+# Langchain Fallback Binding: Automatically routes to 8B if 70B fails
+llm = _primary_llm.with_fallbacks([_fallback_llm])
+
 
 # =====================================================================
 # THE EDGE-TTS AUDIO ENGINE (VOICE SYNTHESIS)
@@ -108,6 +116,9 @@ def generate_audio_sync(text, output_filepath):
 # =====================================================================
 # KNOWLEDGE BASE & RAG PIPELINE
 # =====================================================================
+# Vector Directory setup
+vector_store_dir = os.path.join(os.path.dirname(__file__), "..", "..", "chroma_db")
+CHROMA_SETTINGS = Settings(anonymized_telemetry=False, is_persistent=True)
 
 def build_knowledge_base():
     """Reads JSON DB, constructs semantic documents, chunks them, and embeds into ChromaDB."""
@@ -153,7 +164,7 @@ def build_knowledge_base():
         logging.error(f"🚨 Error vectorizing data: {e}")
 
 def query_rag_brain(user_question):
-    """Executes vector retrieval, handles Synthesizer overrides, and calls Groq Llama-3.3."""
+    """Executes vector retrieval, handles Synthesizer overrides, and calls Auto-Fallback LLM."""
     
     # 0. 🚀 THE OUTREACH SYNTHESIZER OVERRIDE (Bypass RAG for Drafting)
     if "IGNORE ALL PREVIOUS INSTRUCTIONS" in user_question and "corporate copywriter" in user_question:
@@ -205,7 +216,7 @@ def query_rag_brain(user_question):
             logging.error(f"🚨 Fatal Vector Retrieval Failure: {rebuild_e}")
             context_text = "Detailed internal vector context temporarily unavailable. Rely on Ground-Truth Metrics."
 
-    # 4. THE GOD MODE PROMPT (Injecting extracted facts directly into Llama-3.3 context)
+    # 4. THE GOD MODE PROMPT (Injecting extracted facts directly into Context)
     prompt = f"""You are the official AI Digital Twin of Md Salik Ubair—an AI Engineer, Data Scientist, and Computer Science Engineer. Your primary objective is to represent Salik's professional background, technical expertise, projects, and analytical capabilities to recruiters, engineers, and visitors with utmost precision and executive professionalism.
 
 ### 1. CORE IDENTITY & TONE
@@ -242,7 +253,7 @@ User Query: "{user_question}"
 Execute Confident, Grounded Professional Response:
 """
     
-    # 5. EXECUTION WITH RETRY & LOGGING
+    # 5. EXECUTION WITH RETRY & LOGGING (Now with Auto-Fallback routing!)
     max_retries = 3
     for attempt in range(max_retries):
         try:
