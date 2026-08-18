@@ -53,20 +53,20 @@ embeddings = GoogleGenerativeAIEmbeddings(
     google_api_key=os.getenv("GEMINI_API_KEY")
 )
 
-# 2. Multi-Tier Groq LLM Strategy (Primary + Fallback)
+# 2. Multi-Tier Groq LLM Strategy (Primary + Fallback with Active Models)
 _primary_llm = ChatGroq(
-    model_name="llama-3.3-70b-versatile",  # High Accuracy (Try First)
+    model_name="openai/gpt-oss-120b",  # High Accuracy Active Model (Try First)
     groq_api_key=os.getenv("GROQ_API_KEY"),
     temperature=0.3
 )
 
 _fallback_llm = ChatGroq(
-    model_name="llama-3.1-8b-instant",  # High Speed / Safe Fallback
+    model_name="openai/gpt-oss-20b",  # High Speed Active Model / Safe Fallback
     groq_api_key=os.getenv("GROQ_API_KEY"),
     temperature=0.3
 )
 
-# Langchain Fallback Binding: Automatically routes to 8B if 70B fails
+# Langchain Fallback Binding: Automatically routes to Fallback if Primary fails
 llm = _primary_llm.with_fallbacks([_fallback_llm])
 
 
