@@ -36,6 +36,9 @@ function App() {
   const [isChatOpen, setIsChatOpen] = useState(false); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // 🚀 CRITICAL FIX: The Lock to prevent duplicate chat renders
+  const [isChatLoading, setIsChatLoading] = useState(false);
+
   // Modal States
   const [viewingNode, setViewingNode] = useState(null); 
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -106,12 +109,12 @@ function App() {
         "Establishing secure TCP connection to MongoDB Atlas Cloud...",
         "MongoDB connection established. Fetching master matrix...",
         "Waking up Flask WSGI worker processes (Thread count: 4)...",
-        "Connecting to Groq Llama-3.3 70B LLM Inference Engine...",
-        "Loading Google Gemini 768-Dimensional Vector Embeddings...",
-        "Mounting FAISS localized semantic similarity database into RAM...",
+        "Connecting to Groq Multi-Tier inference backend...",
+        "Mounting 'openai/gpt-oss-120b' Primary LLM Pipeline...",
+        "Loading Google Gemini (text-embedding-004) Neural Vectors...",
+        "Mounting ChromaDB localized semantic similarity database...",
         "Validating Cosine Similarity (L2 Distance) metric layers...",
         "Initializing Edge-TTS Audio Synchronization modules...",
-        "Preparing Retrieval-Augmented Generation (RAG) pipelines...",
         "Awaiting final payload handshake from upstream cloud provider..."
     ];
 
@@ -123,9 +126,9 @@ function App() {
             setTerminalLogs(prev => [...prev, newLog]);
             i++;
         } else {
-            clearInterval(logInterval); // Stops streaming when array finishes
+            clearInterval(logInterval); 
         }
-    }, 800); // Streams a new realistic log every 0.8 seconds
+    }, 400); // Speed up terminal loading for VIP viewing
     
     return () => {
         clearInterval(timeInterval);
@@ -398,6 +401,7 @@ function App() {
   const handleStopResponse = () => {
     if (['intro', 'answering'].includes(aiState)) {
         stopAllAudio();
+        setIsChatLoading(false); // Free the lock
         setAiState('idle'); 
         setChatHistory(prev => {
             const lastMsg = prev[prev.length - 1];
@@ -467,6 +471,7 @@ function App() {
             if (!audioRef.current) return;
             setAiState('answering');
             setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]); 
+            setIsChatLoading(false); // Free the lock once answer is pushed
             if (speakingRef.current) {
                 speakingRef.current.currentTime = 0;
                 speakingRef.current.play().catch(e => console.log("Video Play Blocked:", e));
@@ -481,25 +486,31 @@ function App() {
             console.error("Audio Load Error:", e);
             setAiState('idle');
             setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]); 
+            setIsChatLoading(false); // Free the lock
             handleSmartScroll(cleanSub);
         }
         newAudio.play().catch(e => { 
             console.error("Audio AutoPlay blocked:", e); 
             setAiState('idle'); 
             setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]); 
+            setIsChatLoading(false); // Free the lock
             handleSmartScroll(cleanSub);
         });
     } else {
         setAiState('idle');
         setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]);
+        setIsChatLoading(false); // Free the lock
         handleSmartScroll(cleanSub);
     }
   };
 
   const executeAiQuery = (queryText) => {
-    if (!queryText.trim() || ['intro', 'thinking'].includes(aiState)) return;
+    // Double safeguard to prevent duplicates
+    if (!queryText.trim() || ['intro', 'thinking'].includes(aiState) || isChatLoading) return;
+    
     if (aiState === 'answering') handleStopResponse();
     
+    setIsChatLoading(true); // Lock the input immediately
     setChatHistory(prev => [...prev, { role: 'user', text: queryText }]);
     setUserQuery('');
     setAiState('thinking');
@@ -518,6 +529,7 @@ function App() {
     .catch(() => {
       setChatHistory(prev => [...prev, { role: 'ai', text: "Network dropout. Server might be spinning up from sleep..." }]);
       setAiState('idle');
+      setIsChatLoading(false); // Free the lock on error
     });
   };
 
@@ -652,21 +664,21 @@ function App() {
                           </div>
                           <div>
                               <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Inference Engine</p>
-                              <p className="text-xs text-sky-400 font-bold">Groq Llama-3.3 70B</p>
+                              <p className="text-xs text-sky-400 font-bold">Groq Multi-Tier LLM</p>
                           </div>
                           <div>
                               <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Embeddings</p>
-                              <p className="text-xs text-sky-400 font-bold">Google Gemini 768-D</p>
+                              <p className="text-xs text-sky-400 font-bold">Google Gemini (text-004)</p>
                           </div>
                           <div>
                               <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Semantic DB</p>
-                              <p className="text-xs text-sky-400 font-bold">FAISS / ChromaDB</p>
+                              <p className="text-xs text-sky-400 font-bold">ChromaDB Local</p>
                           </div>
                       </div>
                       
                       <div className="flex items-center gap-3 opacity-50">
                           <div className="w-8 h-8 bg-white text-black flex items-center justify-center font-sans font-black text-xs rounded-sm">SU.</div>
-                          <span className="text-[10px] tracking-widest uppercase font-bold">AI.Core_v2</span>
+                          <span className="text-[10px] tracking-widest uppercase font-bold">AI.Core_v3</span>
                       </div>
                   </div>
 
@@ -1075,7 +1087,7 @@ function App() {
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-sky-500/30 to-transparent"></div>
                     <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight">Ready to build the future?</h2>
                     <p className="text-slate-400 text-xs md:text-sm max-w-xl mx-auto leading-relaxed">
-                       Use the Outreach Synthesizer to draft a customized professional message, or chat directly with my Digital Twin regarding AI architecture and backend engineering.
+                        Use the Outreach Synthesizer to draft a customized professional message, or chat directly with my Digital Twin regarding AI architecture and backend engineering.
                     </p>
                     <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-4">
                         <button onClick={() => setIsContactModalOpen(true)} className="relative group w-full sm:w-auto">
@@ -1375,8 +1387,19 @@ function App() {
                               </button>
                           ) : (
                               <form onSubmit={triggerAiQuery} className="relative flex items-center">
-                                  <input type="text" value={userQuery} onChange={(e) => setUserQuery(e.target.value)} disabled={['intro', 'thinking'].includes(aiState)} placeholder="Ask Salik's Twin..." className="w-full bg-[#111] border border-white/10 focus:border-sky-500/50 rounded-lg pl-4 pr-12 py-3 text-xs text-white outline-none transition-all placeholder:text-slate-600 disabled:opacity-50" />
-                                  <button type="submit" disabled={!userQuery.trim() || ['intro', 'thinking'].includes(aiState)} className="absolute right-1.5 w-8 h-8 rounded-md bg-sky-500/10 text-sky-400 flex items-center justify-center hover:bg-sky-500 hover:text-black transition-all disabled:opacity-0">
+                                  <input 
+                                      type="text" 
+                                      value={userQuery} 
+                                      onChange={(e) => setUserQuery(e.target.value)} 
+                                      disabled={['intro', 'thinking'].includes(aiState) || isChatLoading} 
+                                      placeholder={isChatLoading ? "Agent is processing..." : "Ask Salik's Twin..."} 
+                                      className="w-full bg-[#111] border border-white/10 focus:border-sky-500/50 rounded-lg pl-4 pr-12 py-3 text-xs text-white outline-none transition-all placeholder:text-slate-600 disabled:opacity-50" 
+                                  />
+                                  <button 
+                                      type="submit" 
+                                      disabled={!userQuery.trim() || ['intro', 'thinking'].includes(aiState) || isChatLoading} 
+                                      className="absolute right-1.5 w-8 h-8 rounded-md bg-sky-500/10 text-sky-400 flex items-center justify-center hover:bg-sky-500 hover:text-black transition-all disabled:opacity-0"
+                                  >
                                       <span className="font-bold text-base">↗</span>
                                   </button>
                               </form>
