@@ -26,7 +26,7 @@
   <img src="ReadmeAssets/03_rag_twin.png" alt="Digital Twin Interface" width="90%" />
 </div>
 
-*   **Inference Engine:** Utilizes `Llama-3.3 (70B)` via Groq API for ultra-low latency, intelligent response synthesis.
+*   **Inference Engine:** Utilizes Multi-Tier Groq LLM Engine (gpt-oss-120b with fallback to 20b) for ultra-low latency, intelligent response synthesis.
 *   **Semantic Matrix:** Localized `ChromaDB` vector store powered by Google Generative AI Embeddings (`text-embedding-004`) with `RecursiveCharacterTextSplitter` for crash-proof data ingestion.
 *   **Hidden Context Embedding:** Deep technical documentation (`hidden_readme`) is embedded per database node. The AI autonomously understands complex underlying architectures without cluttering the public UI.
 *   **Synchronized Audio-Visuals:** Integrates `Edge-TTS` for real-time audio streaming. Features a hardware-accelerated video state controller mapping an avatar between idle, thinking, and speaking modes.
@@ -63,6 +63,15 @@
 *   **Matrix Bootloader:** Simulated cyber-terminal pre-fetching sequence masking standard server cold-start latencies.
 *   **Responsive Engine:** Fluid grid-layouts on PC that seamlessly adapt into horizontal snap-scrolling cards on mobile devices for flawless UX.
 *   **Custom Cyber Toasts:** Globally deployed sleek, matrix-styled toast notifications replacing standard browser alerts.
+
+### 5. Interactive System Architecture Whitepaper
+<div align="center">
+  <img src="ReadmeAssets/07_architecture.png" alt="System Architecture Whitepaper" width="90%" />
+</div>
+
+*   **Developer-First Transparency:** A dedicated interactive modal detailing the core engineering pipeline to technical recruiters and AI founders.
+*   **Pipeline Breakdown:** Deep-dive explanations covering Vectorization (Gemini 768-D), Semantic Retrieval (ChromaDB), and Inference Generation.
+*   **Production Resilience:** Showcases edge-case handling like Automated LLM Fallback Routing (Zero Downtime) and Self-Healing Database reconstruction.
 ---
 
 ## ⚙️ System Architecture Data Flow
@@ -110,7 +119,7 @@
 - **ChromaDB** (Vector Similarity Search)
 - **MongoDB** (Persistent Storage & Structural Data)
 - **LangChain** (Pipeline Orchestration)
-- **Groq API** (Llama-3.3-70b-versatile)
+- **Groq API** (openai/gpt-oss-120b & 20b Fallback)
 - **Google Generative AI** (text-embedding-004)
 
 ---

@@ -42,6 +42,7 @@ function App() {
   // Modal States
   const [viewingNode, setViewingNode] = useState(null); 
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isWhitepaperOpen, setIsWhitepaperOpen] = useState(false); // 🚀 NEW: Architecture PPT Modal
   
   // Custom Toast Notification System
   const [toast, setToast] = useState(null);
@@ -160,16 +161,19 @@ function App() {
         } else if (isChatOpen) {
             e.preventDefault();
             setIsChatOpen(false); 
+        } else if (isWhitepaperOpen) {
+            e.preventDefault();
+            setIsWhitepaperOpen(false);
         }
     };
     
-    if (viewingNode || isChatOpen || isContactModalOpen) {
+    if (viewingNode || isChatOpen || isContactModalOpen || isWhitepaperOpen) {
         window.history.pushState(null, "", window.location.href);
     }
     
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [viewingNode, isChatOpen, isContactModalOpen]);
+  }, [viewingNode, isChatOpen, isContactModalOpen, isWhitepaperOpen]);
 
 
   // ---------------------------------------------------------
@@ -589,14 +593,20 @@ function App() {
 
   const navLinks = [
     { label: 'About', view: 'portfolio', section: 'top' },
+    { label: 'Architecture', view: 'portfolio', section: 'modal-whitepaper' }, // 🚀 NEW: Architecture Button
     { label: 'Experience', view: 'portfolio', section: 'section-experiences' },
     { label: 'Projects', view: 'portfolio', section: 'section-projects' },
     { label: 'Education', view: 'portfolio', section: 'section-education' },
-    { label: 'Certifications', view: 'portfolio', section: 'section-certifications_and_achievements' },
     { label: 'Admin Hub', view: 'admin-hub', section: null },
   ];
 
   const handleNavClick = (view, sectionId) => {
+      if (sectionId === 'modal-whitepaper') {
+          setIsWhitepaperOpen(true);
+          setIsMobileMenuOpen(false);
+          return;
+      }
+      
       setCurrentView(view);
       setIsMobileMenuOpen(false);
       if(sectionId && view === 'portfolio') {
@@ -747,11 +757,10 @@ function App() {
             <div className="hidden lg:flex items-center gap-8">
                 {navLinks.map((link, idx) => (
                     <button 
-                        key={idx}
-                        onClick={() => handleNavClick(link.view, link.section)}
-                        className="text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400 hover:text-sky-400 transition-colors"
-                    >
-                        {link.label}
+                    key={idx}
+                    onClick={() => handleNavClick(link.view, link.section)}
+                    className="text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400 hover:text-sky-400 transition-colors">
+                    {link.label}
                     </button>
                 ))}
                 {/* TOP NAVBAR PRIORITY CTA */}
@@ -784,13 +793,93 @@ function App() {
               <div className="fixed top-[64px] left-0 w-full bg-[#050505]/95 backdrop-blur-xl border-b border-white/10 z-40 lg:hidden flex flex-col p-4 space-y-2 shadow-2xl animate-fadeIn">
                   {navLinks.map((link, idx) => (
                       <button 
-                          key={idx}
-                          onClick={() => handleNavClick(link.view, link.section)}
-                          className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-white/5 w-full text-left py-4 px-4 rounded-xl transition-all border border-transparent hover:border-white/10"
-                      >
-                          {link.label}
-                      </button>
+    key={idx}
+    onClick={() => handleNavClick(link.view, link.section)}
+    className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-white/5 w-full text-left py-4 px-4 rounded-xl transition-all border border-transparent hover:border-white/10"
+>
+    {link.label}
+</button>
                   ))}
+              </div>
+          )}
+
+          {/* 🚀 NEW: SYSTEM ARCHITECTURE WHITEPAPER MODAL 🚀 */}
+          {isWhitepaperOpen && (
+              <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-fadeIn" onClick={() => setIsWhitepaperOpen(false)}>
+                  <div className="bg-[#050505] border border-emerald-500/20 w-full max-w-5xl rounded-3xl shadow-[0_0_100px_rgba(16,185,129,0.15)] relative overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-sky-500"></div>
+                      <button onClick={() => setIsWhitepaperOpen(false)} className="absolute top-5 right-5 text-slate-400 hover:text-white bg-white/5 w-10 h-10 rounded-full flex items-center justify-center transition-colors z-20 hover:bg-red-500">✕</button>
+                      
+                      <div className="p-8 md:p-10 border-b border-white/5 bg-[#0a0a0a] flex-shrink-0">
+                          <div className="flex items-center gap-3 mb-2">
+                              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                              <span className="text-[10px] font-mono text-emerald-400 tracking-widest uppercase">System Design Overview</span>
+                          </div>
+                          <h3 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight">The "Digital Twin" Architecture</h3>
+                          <p className="text-xs md:text-sm text-slate-400 mt-3 leading-relaxed max-w-3xl">
+                              This portfolio is not a static webpage. It is a full-stack, production-grade <strong>Retrieval-Augmented Generation (RAG)</strong> application designed to showcase enterprise-level AI engineering, inference optimization, and system resilience.
+                          </p>
+                      </div>
+
+                      <div className="p-8 md:p-10 overflow-y-auto space-y-12" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                          
+                          {/* Section 1: The RAG Pipeline */}
+                          <div className="space-y-6">
+                              <h4 className="text-lg font-bold text-white border-b border-white/10 pb-2">1. The Neural Pipeline (Vector Search & Generation)</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div className="bg-[#111] border border-white/5 p-5 rounded-2xl">
+                                      <div className="text-sky-400 mb-2">① Vectorization</div>
+                                      <h5 className="font-bold text-sm text-white mb-2">Google Gemini 768-D</h5>
+                                      <p className="text-[11px] text-slate-400 leading-relaxed">Incoming user queries and backend JSON data are embedded into 768-dimensional space using Google's <code>text-embedding-004</code> model for high-accuracy semantic capturing.</p>
+                                  </div>
+                                  <div className="bg-[#111] border border-white/5 p-5 rounded-2xl">
+                                      <div className="text-sky-400 mb-2">② Semantic Retrieval</div>
+                                      <h5 className="font-bold text-sm text-white mb-2">ChromaDB / FAISS</h5>
+                                      <p className="text-[11px] text-slate-400 leading-relaxed">The system performs an L2 (Cosine Distance) similarity search across the local vector database, retrieving the Top-K (K=6) most contextually relevant document chunks.</p>
+                                  </div>
+                                  <div className="bg-[#111] border border-white/5 p-5 rounded-2xl">
+                                      <div className="text-sky-400 mb-2">③ LLM Inference</div>
+                                      <h5 className="font-bold text-sm text-white mb-2">Groq Llama-3.3 70B</h5>
+                                      <p className="text-[11px] text-slate-400 leading-relaxed">The retrieved facts are injected into a strict zero-hallucination prompt. Groq's LPU inference engine processes the 70B parameter model to generate a professional response in under ~850ms.</p>
+                                  </div>
+                              </div>
+                          </div>
+
+                          {/* Section 2: Audio Synthesis */}
+                          <div className="space-y-4">
+                              <h4 className="text-lg font-bold text-white border-b border-white/10 pb-2">2. Multi-Modal Audio Synthesis</h4>
+                              <div className="bg-[#111] border border-white/5 p-6 rounded-2xl flex flex-col md:flex-row gap-6 items-center">
+                                  <div className="flex-1 space-y-3">
+                                      <p className="text-xs text-slate-300 leading-relaxed">
+                                          Text responses are piped through Microsoft's <strong>Edge-TTS</strong> neural voice synthesis engine. The system dynamically strips markdown and code blocks, optimizing the plain text for a natural, 24kHz Indian-English accent stream (<code>en-IN-PrabhatNeural</code>). 
+                                      </p>
+                                      <p className="text-xs text-slate-300 leading-relaxed">
+                                          The frontend synchronizes the incoming audio blob with HTML5 video elements, creating a seamless "Virtual Avatar" presence that reacts to the inference state (Idle, Thinking, Answering).
+                                      </p>
+                                  </div>
+                                  <div className="w-full md:w-1/3 bg-black border border-white/10 rounded-xl p-4 font-mono text-[9px] text-emerald-400 whitespace-pre-wrap">
+                                      {`async def _generate():\n  communicate = edge_tts.Communicate(\n    clean_text,\n    voice="en-IN-PrabhatNeural"\n  )\n  await communicate.save(filepath)`}
+                                  </div>
+                              </div>
+                          </div>
+
+                          {/* Section 3: Engineering Resilience */}
+                          <div className="space-y-4">
+                              <h4 className="text-lg font-bold text-white border-b border-white/10 pb-2">3. Production-Grade Fallbacks & Resilience</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="bg-amber-500/5 border border-amber-500/20 p-5 rounded-2xl">
+                                      <h5 className="font-bold text-sm text-amber-500 mb-2">Automated LLM Routing</h5>
+                                      <p className="text-[11px] text-slate-400 leading-relaxed">If the primary 120B/70B model encounters a rate limit or API block, LangChain's <code>.with_fallbacks()</code> instantly reroutes the request to a faster 20B/8B model with zero downtime or error flags visible to the user.</p>
+                                  </div>
+                                  <div className="bg-sky-500/5 border border-sky-500/20 p-5 rounded-2xl">
+                                      <h5 className="font-bold text-sm text-sky-500 mb-2">Self-Healing Database</h5>
+                                      <p className="text-[11px] text-slate-400 leading-relaxed">If the backend cloud instance restarts and clears temporary memory, the Python service detects the missing vector directory and automatically rebuilds and re-chunks the entire ChromaDB from the master JSON payload in real-time.</p>
+                                  </div>
+                              </div>
+                          </div>
+
+                      </div>
+                  </div>
               </div>
           )}
 
