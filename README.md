@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Architecture-RAG-sky" alt="RAG Architecture" />
   <img src="https://img.shields.io/badge/Frontend-React_18_%7C_Tailwind_CSS-blue" alt="Frontend" />
   <img src="https://img.shields.io/badge/Backend-Python_%7C_Flask_%7C_MongoDB-emerald" alt="Backend" />
-  <img src="https://img.shields.io/badge/LLM-Groq_Llama--3.3--70B-purple" alt="LLM" />
+  <img src="https://img.shields.io/badge/LLM-Groq_gpt--oss--120B_%7C_20B_Fallback-purple" alt="LLM" />
   <img src="https://img.shields.io/badge/Embeddings-Google_Gemini_Text--004-red" alt="Embeddings" />
 </div>
 
