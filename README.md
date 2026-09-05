@@ -57,8 +57,6 @@
 
 ## ⚙️ System Architecture Data Flow
 
-## ⚙️ System Architecture Data Flow
-
 ```text
 [ Visitor / Technical Recruiter ]
         │
