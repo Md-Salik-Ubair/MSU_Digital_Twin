@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Architected by Md Salik Ubair</b><br/>
-  A next-generation, ultra-scalable web portfolio featuring a <b>localized Retrieval-Augmented Generation (RAG) Digital Twin</b>, an <b>AI Outreach Synthesizer</b>, and a <b>Dynamic Admin Control Hub</b>. Engineered to decouple heavy asynchronous AI orchestration from the client interface, providing seamless, real-time interactive intelligence backed by an editable database matrix.
+  A production-grade founder portfolio featuring an <b>interactive AI Digital Twin powered by localized Retrieval-Augmented Generation (RAG)</b>, audio-visual synchronization, and a <b>Dynamic Admin Matrix</b>. Engineered to decouple heavy asynchronous AI inference and vector indexing from the frontend client, delivering an ultra-minimalist executive UX.
 </p>
 
 <div align="center">
@@ -32,79 +32,66 @@
 *   **Synchronized Audio-Visuals:** Integrates `Edge-TTS` for real-time audio streaming. Features a hardware-accelerated video state controller mapping an avatar between idle, thinking, and speaking modes.
 *   **Zero-Hallucination Guardrails:** Hardcoded ground-truth metrics (dynamic age, verified project counts) injected directly into the LLM context at runtime.
 
-### 2. AI Outreach Synthesizer (One-Shot Copywriting)
-<div align="center">
-  <img src="ReadmeAssets/04_synthesizer_1.png" alt="Synthesizer Input State" width="49%" />
-  <img src="ReadmeAssets/04_synthesizer_2.png" alt="Synthesizer Generated State" width="49%" />
-</div>
-
-*   **Contextual Overrides:** A specialized modal that bypasses standard RAG protocols via Prompt Injection, transforming the core engine into an expert corporate copywriter.
-*   **Privacy-First Generation:** Drafts highly professional, tailored outreach emails (e.g., job interviews, freelance collaborations) instantly based on pure intent without logging user data.
-*   **Direct Routing:** Seamlessly routes generated intent to native applications (Direct Gmail Web Compose, LinkedIn, WhatsApp, Instagram).
-
-### 3. Dynamic Admin Control Hub & Matrix Synchronization
+### 2. Dynamic Admin Control Hub & Matrix Synchronization
 <div align="center">
   <img src="ReadmeAssets/05_admin_hub.png" alt="Admin Hub Control" width="90%" />
 </div>
 
-*   **Zero-Downtime Reconstructions:** Secure `MongoDB` integration enabling native CRUD manipulation. Saving data instantly triggers background threading to re-index the RAG Vector DB.
-*   **O(1) Node Reordering:** Smooth, optimistic UI node sequencing (`↑` / `↓` indices) dynamically synced to the MongoDB pipeline.
-*   **Master Resume Pipeline:** Direct ingestion of raw master CV text to instantly update the AI's internal memory matrix.
+*   **Zero-Downtime Re-Indexing:** Secure `MongoDB` integration enabling native CRUD operations. Updating records automatically triggers background threading to re-embed and synchronize ChromaDB.
+*   **O(1) Node Reordering:** Smooth, optimistic UI sequencing (`↑` / `↓` indices) dynamically synced to the persistent MongoDB schema.
+*   **Master Corpus Pipeline:** Ingests raw master CV text directly into vector chunks for real-time memory expansion.
 
-### 4. Adaptive Cinematic UI & Boot Sequence
+### 3. Executive Founder UI & Minimalist Architecture
 <div align="center">
-  <img src="ReadmeAssets/02_bootloader.png" alt="System Bootloader" width="90%" />
+  <img src="ReadmeAssets/02_loader.png" alt="Minimalist System Loader" width="70%" />
 </div>
 <br/>
 <div align="center">
-  <img src="ReadmeAssets/06_mobile.png" alt="Mobile Adaptive Snap View" width="35%" />
+  <img src="ReadmeAssets/06_mobile.png" alt="Responsive Mobile Split View" width="35%" />
 </div>
 
-*   **Matrix Bootloader:** Simulated cyber-terminal pre-fetching sequence masking standard server cold-start latencies.
-*   **Responsive Engine:** Fluid grid-layouts on PC that seamlessly adapt into horizontal snap-scrolling cards on mobile devices for flawless UX.
-*   **Custom Cyber Toasts:** Globally deployed sleek, matrix-styled toast notifications replacing standard browser alerts.
-
-### 5. Interactive System Architecture Whitepaper
-<div align="center">
-  <img src="ReadmeAssets/07_architecture.png" alt="System Architecture Whitepaper" width="90%" />
-</div>
-
-*   **Developer-First Transparency:** A dedicated interactive modal detailing the core engineering pipeline to technical recruiters and AI founders.
-*   **Pipeline Breakdown:** Deep-dive explanations covering Vectorization (Gemini 768-D), Semantic Retrieval (ChromaDB), and Inference Generation.
-*   **Production Resilience:** Showcases edge-case handling like Automated LLM Fallback Routing (Zero Downtime) and Self-Healing Database reconstruction.
+*   **Minimalist Brand Loading:** Monochromatic typography loader masking cold-start backend wake-up cycles.
+*   **Ghost Card Layouts:** Transparent card containers with ultra-subtle micro-borders to maintain structural visual hierarchy without boxed UI clutter.
+*   **Fixed Mobile Viewport Split:** Precision-engineered 40/60 mobile modal layout keeping the avatar's portrait framing locked while allowing seamless chat log scrolling.
 ---
 
 ## ⚙️ System Architecture Data Flow
 
+## ⚙️ System Architecture Data Flow
+
 ```text
-[ Visitor / Recruiter ]
+[ Visitor / Technical Recruiter ]
         │
-        ├───► [ React 18 + Tailwind Frontend UI ]
-        │            │
-        │            ├───► [ Initiate Outreach ] ───► [ LLM Synthesizer Override ] ───► [ Native Routing ]
-        │            │
-        │            └───► [ Digital Twin Query ]
-        │                         │
-        └─────────────────────────┼─────────────────────────────────────────────┐
-                                  ▼                                             │
-                     [ Flask REST Backend API ]                                 │
-                                  │                                             │
-            ┌─────────────────────┴─────────────────────┐                       │
-            ▼                                           ▼                       │
-  [ MongoDB Cloud State ]                   [ LangChain RAG Engine ]            │
- (Master Schema / Nodes)                                │                       │
-            │                                           ├───► Google Gemini Embeddings (768-D)
-            │                                           ├───► ChromaDB Vector Store
-            └──────► [ Background Vector Sync ] ────────┼───► Truth Metric Injection
-                                                        │
-                                                        ▼
-                                             [ Groq Llama-3.3-70B ]
-                                                        │
-                                                        ▼
-                                             [ Edge-TTS Audio Sync ]
-                                                        │
-                                                        ▼
-                                          [ Streamed Response to Frontend ]
+        ▼
+[ React 18 + Tailwind Frontend Interface ]
+        │
+        ├───► [ Direct Inquiries ] ───► [ Official Channels: LinkedIn / Email ]
+        │
+        └───► [ AI Assistant Interactive Query ]
+                    │
+                    ▼
+        [ Flask REST Backend Gateway ]
+                    │
+       ┌────────────┴───────────────────────────┐
+       ▼                                        ▼
+[ MongoDB Atlas Cloud ]               [ LangChain RAG Engine ]
+ (Master Nodes Schema)                          │
+       │                                        ├───► Gemini Text-Embedding-004 (768-D)
+       │                                        ├───► ChromaDB Vector Similarity Search
+       └────► [ Background Re-Index Worker ] ───┼───► Dynamic Ground-Truth Facts Injection
+                                                │
+                                                ▼
+                                    [ Groq Multi-Tier Engine ]
+                                  (gpt-oss-120b ➔ 20b Fallback)
+                                                │
+                                                ▼
+                                    [ Edge-TTS Audio Engine ]
+                                                │
+                                                ▼
+                                    [ Audio Blob + Text Payload ]
+                                                │
+                                                ▼
+                                 [ Hardware-Accelerated Avatar Sync ]
 ```
 # 🛠️ Core Technology Stack
 
