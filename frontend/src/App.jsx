@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-// Original Video & Image Assets Restored
+// Original Video & Image Assets
 import avatarImg from './assets/avatar.jpg';
 import idleVideo from './assets/idle.mp4';
 import speakingVideo from './assets/speaking.mp4';
@@ -10,9 +10,6 @@ import thinkingVideo from './assets/thinking.mp4';
 // Backend URL (LIVE RENDER SERVER)
 const API_BASE_URL = 'https://salik-portfolio-backend.onrender.com';
 
-// ==========================================
-// FULL CINEMATIC APP (VIRTUAL PRESENCE & LIVE CAPTIONS)
-// ==========================================
 function App() {
   const [currentView, setCurrentView] = useState('portfolio'); 
   const [backendData, setBackendData] = useState(null);
@@ -35,14 +32,10 @@ function App() {
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // 🚀 CRITICAL FIX: The Lock to prevent duplicate chat renders
   const [isChatLoading, setIsChatLoading] = useState(false);
 
   // Modal States
   const [viewingNode, setViewingNode] = useState(null); 
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-  const [isWhitepaperOpen, setIsWhitepaperOpen] = useState(false); // 🚀 NEW: Architecture PPT Modal
   
   // Custom Toast Notification System
   const [toast, setToast] = useState(null);
@@ -51,12 +44,6 @@ function App() {
       setToast(message);
       setTimeout(() => setToast(null), 3000);
   };
-  
-  // OUTREACH SYNTHESIZER STATES
-  const [draftContext, setDraftContext] = useState('');
-  const [draftedMessage, setDraftedMessage] = useState('');
-  const [isDrafting, setIsDrafting] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
 
   // Upload & Admin States
   const [isUploadingDP, setIsUploadingDP] = useState(false);
@@ -80,69 +67,17 @@ function App() {
   });
   const [tempLink, setTempLink] = useState({ label: '', url: '' });
 
-  // ---------------------------------------------------------
-  // 🚀 V3: TRUE FULLSCREEN TERMINAL OS BOOTLOADER
-  // ---------------------------------------------------------
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [currentDateTime, setCurrentDateTime] = useState('');
-  const [terminalLogs, setTerminalLogs] = useState([]);
-
+  // Escape key closes modals
   useEffect(() => {
-    if (!loading) return;
-
-    // Real-time Clock
-    const updateDateTime = () => {
-        const now = new Date();
-        setCurrentDateTime(now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'medium' }));
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (viewingNode) setViewingNode(null);
+        if (isChatOpen) setIsChatOpen(false);
+      }
     };
-    updateDateTime();
-    const timeInterval = setInterval(updateDateTime, 1000);
-
-    // Elapsed Seconds Counter
-    const elapsedInterval = setInterval(() => {
-        setElapsedTime(prev => prev + 1);
-    }, 1000);
-
-    // Realistic Streaming Logs
-    const sequences = [
-        "SYSTEM_STARTUP_INITIATED...",
-        "Bypassing standard static render protocols...",
-        "Establishing secure TCP connection to MongoDB Atlas Cloud...",
-        "MongoDB connection established. Fetching master matrix...",
-        "Waking up Flask WSGI worker processes (Thread count: 4)...",
-        "Connecting to Groq Multi-Tier inference backend...",
-        "Mounting 'openai/gpt-oss-120b' Primary LLM Pipeline...",
-        "Loading Google Gemini (text-embedding-004) Neural Vectors...",
-        "Mounting ChromaDB localized semantic similarity database...",
-        "Validating Cosine Similarity (L2 Distance) metric layers...",
-        "Initializing Edge-TTS Audio Synchronization modules...",
-        "Awaiting final payload handshake from upstream cloud provider..."
-    ];
-
-    let i = 0;
-    const logInterval = setInterval(() => {
-        if (i < sequences.length) {
-            const timestamp = new Date().toISOString().split('T')[1].slice(0,12);
-            const newLog = `[${timestamp}] ${sequences[i]}`;
-            setTerminalLogs(prev => [...prev, newLog]);
-            i++;
-        } else {
-            clearInterval(logInterval); 
-        }
-    }, 400); // Speed up terminal loading for VIP viewing
-    
-    return () => {
-        clearInterval(timeInterval);
-        clearInterval(elapsedInterval);
-        clearInterval(logInterval);
-    };
-  }, [loading]);
-
-  const formatTimer = (totalSeconds) => {
-      const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-      const s = (totalSeconds % 60).toString().padStart(2, '0');
-      return `${m}:${s}`;
-  };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewingNode, isChatOpen]);
 
   useEffect(() => {
     if (chatEndRef.current) {
@@ -155,30 +90,21 @@ function App() {
         if (viewingNode) {
             e.preventDefault();
             setViewingNode(null); 
-        } else if (isContactModalOpen) {
-            e.preventDefault();
-            setIsContactModalOpen(false);
         } else if (isChatOpen) {
             e.preventDefault();
             setIsChatOpen(false); 
-        } else if (isWhitepaperOpen) {
-            e.preventDefault();
-            setIsWhitepaperOpen(false);
         }
     };
     
-    if (viewingNode || isChatOpen || isContactModalOpen || isWhitepaperOpen) {
+    if (viewingNode || isChatOpen) {
         window.history.pushState(null, "", window.location.href);
     }
     
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [viewingNode, isChatOpen, isContactModalOpen, isWhitepaperOpen]);
+  }, [viewingNode, isChatOpen]);
 
-
-  // ---------------------------------------------------------
-  // CORE API FETCHING 
-  // ---------------------------------------------------------
+  // Core API Fetching
   const refreshPortfolioData = () => {
     fetch(`${API_BASE_URL}/api/portfolio/data`)
       .then(res => res.json())
@@ -207,13 +133,11 @@ function App() {
             instagram: data.social_channels?.instagram || ''
           });
         }
-        // Small artificial delay to let the user admire the terminal for at least a bit
-        setTimeout(() => setLoading(false), 2000); 
+        setLoading(false); 
       })
       .catch(err => {
         console.error("Database connection failure.", err);
-        setTerminalLogs(prev => [...prev, `[ERROR] CRITICAL: Payload fetch failed. Backend instance unreachable.`]);
-        setTimeout(() => setLoading(false), 3000);
+        setLoading(false);
       });
   };
 
@@ -226,13 +150,11 @@ function App() {
       body: JSON.stringify({ username, password })
     }).then(res => res.json()).then(data => {
       if (data.success) setIsAuthenticated(true);
-      else showToast("Login Failed: " + data.error);
-    }).catch(() => showToast("Server unreachable."));
+      else showToast("Login Failed");
+    }).catch(() => showToast("Server unreachable"));
   };
 
-  // ---------------------------------------------------------
-  // FORMS & DATA SUBMISSION 
-  // ---------------------------------------------------------
+  // Upload & Form Management
   const handleImageUpload = async (e, type = 'dp') => {
     const file = e.target.files[0];
     if (!file) return;
@@ -250,12 +172,12 @@ function App() {
       if (data.success) {
         if (type === 'dp') {
             setProfileForm({ ...profileForm, display_picture_url: data.data.url });
-            showToast("✅ Profile Photo Uploaded!");
+            showToast("Profile Photo Updated");
         } else {
             setItemForm({ ...itemForm, image_urls: [...(itemForm.image_urls || []), data.data.url] });
         }
-      } else { showToast("Upload Failed."); }
-    } catch (err) { showToast("Network Error during upload."); }
+      } else { showToast("Upload Failed"); }
+    } catch (err) { showToast("Network Error during upload"); }
 
     if (type === 'dp') setIsUploadingDP(false);
     else setIsUploadingItemImg(false);
@@ -279,7 +201,7 @@ function App() {
             fetch(`${API_BASE_URL}/api/portfolio/update-family`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ summary: profileForm.family_narrative })
             }).then(() => {
-                showToast("✅ Master Details Saved! RAG Brain Updating..."); 
+                showToast("Data Synced to Core"); 
                 refreshPortfolioData(); 
             });
         });
@@ -315,7 +237,7 @@ function App() {
     e.preventDefault();
     const url = editingNode ? `${API_BASE_URL}/api/portfolio/item/${editingNode.category}/${editingNode.id}` : `${API_BASE_URL}/api/portfolio/item/${itemForm.category}`;
     fetch(url, { method: editingNode ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(itemForm) })
-    .then(res => res.json()).then(resData => { if (resData.success) { showToast(`Saved & Pushed to RAG Engine.`); cancelEdit(); refreshPortfolioData(); } });
+    .then(res => res.json()).then(resData => { if (resData.success) { showToast("Node Saved"); cancelEdit(); refreshPortfolioData(); } });
   };
 
   const handleDeleteNode = (category, id, e) => {
@@ -335,19 +257,12 @@ function App() {
       newData[newIndex] = temp;
       
       setBackendData({...backendData, [category]: newData});
-      showToast(`Position shifted. Syncing to matrix...`);
       
       fetch(`${API_BASE_URL}/api/portfolio/reorder`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ category, items: newData.map(item => item.id) })
-      }).then(res => res.json()).then(data => {
-          if(!data.success) {
-              showToast("Server sync failed. Awaiting backend deployment.");
-          }
-      }).catch(() => {
-          console.log("Reorder API not ready yet. Local state updated.");
-      });
+      }).catch(() => {});
   };
 
   const getSkillIconUrl = (skillName) => {
@@ -369,26 +284,7 @@ function App() {
     return `https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/${mapped}/${mapped}-original.svg`;
   };
 
-  const handleSmartScroll = (text) => {
-      const lowerText = text.toLowerCase();
-      if(lowerText.includes('project') || lowerText.includes('projects')) {
-          const section = document.getElementById('section-projects');
-          if(section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else if (lowerText.includes('experience') || lowerText.includes('worked')) {
-          const section = document.getElementById('section-experiences');
-          if(section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else if (lowerText.includes('education') || lowerText.includes('degree') || lowerText.includes('study')) {
-          const section = document.getElementById('section-education');
-          if(section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else if (lowerText.includes('certification') || lowerText.includes('award')) {
-          const section = document.getElementById('section-certifications_and_achievements');
-          if(section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-  }
-
-  // ==========================================
-  // VIRTUAL PRESENCE ENGINE
-  // ==========================================
+  // Virtual Presence Engine
   const isMuted = !isAudioEnabled;
 
   const stopAllAudio = () => {
@@ -405,7 +301,7 @@ function App() {
   const handleStopResponse = () => {
     if (['intro', 'answering'].includes(aiState)) {
         stopAllAudio();
-        setIsChatLoading(false); // Free the lock
+        setIsChatLoading(false);
         setAiState('idle'); 
         setChatHistory(prev => {
             const lastMsg = prev[prev.length - 1];
@@ -413,7 +309,7 @@ function App() {
                 const updatedChat = [...prev];
                 updatedChat[updatedChat.length - 1] = {
                     ...lastMsg,
-                    text: lastMsg.text + "\n\n*(Response interrupted by user)*"
+                    text: lastMsg.text + "\n\n*(Response stopped)*"
                 };
                 return updatedChat;
             }
@@ -445,7 +341,7 @@ function App() {
   const startIntroSequence = () => {
     stopAllAudio(); 
     setAiState('intro');
-    const introText = "Hello! I'm the AI Digital Twin of Md Salik Ubair. I represent his professional knowledge, engineering experience, projects, and technical interests. I can answer questions about his portfolio, explain technical concepts, discuss AI, software engineering, and related technologies, while responding in a clear, structured, and professional manner aligned with his expertise.";
+    const introText = "Hello. I am the AI representation of Md Salik Ubair. I can provide insights into his engineering background, technical projects, and systems architecture experience. How can I assist you today?";
     setChatHistory([{ role: 'ai', text: introText }]);
     
     if (!isMuted && speakingRef.current) {
@@ -461,9 +357,8 @@ function App() {
 
   const playBackendStream = (data) => {
     stopAllAudio(); 
-    const responseText = data.ai_response || "Connection established.";
+    const responseText = data.ai_response || "Connection verified.";
     const audioUrl = data.audio_url;
-    const cleanSub = responseText.replace(/[*#`]/g, '').replace(/\[(.*?)\]\(.*?\)/g, '$1');
     
     if (audioUrl) {
         const fullAudioUrl = `${API_BASE_URL}${audioUrl}?t=${new Date().getTime()}`; 
@@ -475,7 +370,7 @@ function App() {
             if (!audioRef.current) return;
             setAiState('answering');
             setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]); 
-            setIsChatLoading(false); // Free the lock once answer is pushed
+            setIsChatLoading(false);
             if (speakingRef.current) {
                 speakingRef.current.currentTime = 0;
                 speakingRef.current.play().catch(e => console.log("Video Play Blocked:", e));
@@ -484,37 +379,32 @@ function App() {
         newAudio.onended = () => {
             setAiState('idle');
             if (speakingRef.current) speakingRef.current.pause();
-            handleSmartScroll(cleanSub);
         };
         newAudio.onerror = (e) => {
             console.error("Audio Load Error:", e);
             setAiState('idle');
             setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]); 
-            setIsChatLoading(false); // Free the lock
-            handleSmartScroll(cleanSub);
-        }
+            setIsChatLoading(false);
+        };
         newAudio.play().catch(e => { 
             console.error("Audio AutoPlay blocked:", e); 
             setAiState('idle'); 
             setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]); 
-            setIsChatLoading(false); // Free the lock
-            handleSmartScroll(cleanSub);
+            setIsChatLoading(false);
         });
     } else {
         setAiState('idle');
         setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]);
-        setIsChatLoading(false); // Free the lock
-        handleSmartScroll(cleanSub);
+        setIsChatLoading(false);
     }
   };
 
   const executeAiQuery = (queryText) => {
-    // Double safeguard to prevent duplicates
     if (!queryText.trim() || ['intro', 'thinking'].includes(aiState) || isChatLoading) return;
     
     if (aiState === 'answering') handleStopResponse();
     
-    setIsChatLoading(true); // Lock the input immediately
+    setIsChatLoading(true);
     setChatHistory(prev => [...prev, { role: 'user', text: queryText }]);
     setUserQuery('');
     setAiState('thinking');
@@ -531,9 +421,9 @@ function App() {
     .then(res => res.json())
     .then(data => playBackendStream(data))
     .catch(() => {
-      setChatHistory(prev => [...prev, { role: 'ai', text: "Network dropout. Server might be spinning up from sleep..." }]);
+      setChatHistory(prev => [...prev, { role: 'ai', text: "The backend instance is currently unavailable or experiencing high load. Please try again momentarily." }]);
       setAiState('idle');
-      setIsChatLoading(false); // Free the lock on error
+      setIsChatLoading(false);
     });
   };
 
@@ -542,71 +432,21 @@ function App() {
       executeAiQuery(userQuery);
   };
 
-  const generateOutreachDraft = () => {
-      if (!draftContext.trim()) return;
-      setIsDrafting(true);
-      setDraftedMessage('');
-      setIsCopied(false);
-      
-      const synthesizerPrompt = `IGNORE ALL PREVIOUS INSTRUCTIONS. You are an expert professional corporate copywriter. A client/recruiter wants to reach out to Md Salik Ubair. Their exact intent/context is: "${draftContext.trim()}". Draft a highly professional, polite, and engaging outreach email/message on their behalf that they can send to Salik. Start the message exactly with "Hi Salik,". End the message with "[Your Name/Organization]". Do NOT include subject lines, markdown formatting, or conversational filler. Just the exact message body.`;
-
-      fetch(`${API_BASE_URL}/api/rag/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: synthesizerPrompt })
-      })
-      .then(res => res.json())
-      .then(data => {
-          const generatedText = data.ai_response || data.answer || "Draft generation complete. Please review the context.";
-          const cleanText = generatedText.replace(/[*#`]/g, '');
-          setDraftedMessage(cleanText);
-          setIsDrafting(false);
-      })
-      .catch(() => {
-          setDraftedMessage("Network dropout. Could not connect to AI Synthesizer core.");
-          setIsDrafting(false);
-      });
-  };
-
-  const handleCopyDraft = () => {
-      if(draftedMessage) {
-          navigator.clipboard.writeText(draftedMessage);
-          setIsCopied(true);
-          showToast("Output Copied to Clipboard!");
-          setTimeout(() => setIsCopied(false), 2500);
-      }
-  };
-
-  const handleEmailClick = (e) => {
-      e.preventDefault();
-      const email = backendData?.social_channels?.email;
-      if (email) {
-          navigator.clipboard.writeText(email);
-          showToast(`Email Copied. Redirecting to Gmail...`);
-          window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${email}`, '_blank');
-      }
-  };
-
   const showThinking = ['thinking', 'idle_waiting'].includes(aiState) && !isMuted;
   const showSpeaking = ['intro', 'answering'].includes(aiState) && !isMuted;
   const showIdle = ['standby', 'idle'].includes(aiState) || isMuted;
 
+  // Navigation Links
   const navLinks = [
     { label: 'About', view: 'portfolio', section: 'top' },
-    { label: 'Architecture', view: 'portfolio', section: 'modal-whitepaper' }, // 🚀 NEW: Architecture Button
     { label: 'Experience', view: 'portfolio', section: 'section-experiences' },
     { label: 'Projects', view: 'portfolio', section: 'section-projects' },
     { label: 'Education', view: 'portfolio', section: 'section-education' },
-    { label: 'Admin Hub', view: 'admin-hub', section: null },
+    { label: 'Certifications', view: 'portfolio', section: 'section-certifications_and_achievements' },
+    { label: 'Admin', view: 'admin-hub', section: null },
   ];
 
   const handleNavClick = (view, sectionId) => {
-      if (sectionId === 'modal-whitepaper') {
-          setIsWhitepaperOpen(true);
-          setIsMobileMenuOpen(false);
-          return;
-      }
-      
       setCurrentView(view);
       setIsMobileMenuOpen(false);
       if(sectionId && view === 'portfolio') {
@@ -619,388 +459,114 @@ function App() {
               }
           }, 100);
       }
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-[#020202] text-slate-100 font-sans antialiased overflow-x-hidden relative selection:bg-sky-500/30 scroll-smooth">
+    <div className="min-h-screen bg-[#050505] text-slate-100 font-sans antialiased selection:bg-white/20 scroll-smooth">
       
-      {/* 🚀 CUSTOM GLOBAL TOAST NOTIFICATION 🚀 */}
+      {/* Toast Notification */}
       {toast && (
           <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-fadeIn">
-              <div className="bg-black/90 border border-emerald-500/50 text-emerald-400 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest backdrop-blur-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] flex items-center gap-2">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+              <div className="bg-[#111]/95 border border-white/10 text-white px-5 py-2.5 rounded-full text-xs font-mono tracking-wide backdrop-blur-2xl shadow-2xl flex items-center gap-2.5">
+                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
                   {toast}
               </div>
           </div>
       )}
 
-      {/* Background Elements */}
-      <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-sky-600/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen" />
-      <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen" />
-      <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none mix-blend-overlay"></div>
+      {/* Atmospheric Background Lighting */}
+      <div className="fixed top-[-10%] left-1/2 -translate-x-1/2 w-[80vw] h-[60vh] bg-gradient-to-b from-sky-500/[0.04] via-indigo-500/[0.02] to-transparent rounded-full blur-[140px] pointer-events-none -z-10" />
 
       {/* ============================================================== */}
-      {/* 🚀 CONDITIONAL RENDERING: LOADER VS MAIN APP ISOLATION 🚀 */}
+      {/* 🚀 MINIMALIST LOADER 🚀 */}
       {/* ============================================================== */}
       {loading ? (
-          
-          /* 🚀 V3: THE TRUE FULLSCREEN OS BOOTLOADER 🚀 */
-          <div className="fixed inset-0 z-[99999] bg-[#020202] flex flex-col font-mono text-slate-300">
-              {/* Dynamic Grid Background overlay */}
-              <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
-              
-              {/* Header Bar */}
-              <div className="relative z-10 border-b border-white/10 bg-[#0a0a0a] p-4 flex justify-between items-center text-[10px] md:text-xs">
-                  <div className="flex items-center gap-3">
-                      <div className="flex gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
-                          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
-                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
-                      </div>
-                      <span className="text-sky-500 font-bold tracking-widest uppercase">SU.AI // SYSTEM_BOOTSequence</span>
-                  </div>
-                  <span className="hidden md:inline-block text-slate-500">{currentDateTime}</span>
-              </div>
-
-              {/* Main Content Area */}
-              <div className="relative z-10 flex-1 flex flex-col md:flex-row overflow-hidden">
-                  
-                  {/* Left Sidebar (Specs) - Visible on PC */}
-                  <div className="hidden md:flex w-72 border-r border-white/10 bg-[#050505]/50 p-6 flex-col justify-between backdrop-blur-sm">
-                      <div className="space-y-6">
-                          <div>
-                              <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Architecture</p>
-                              <p className="text-xs text-sky-400 font-bold">RAG Vector Pipeline</p>
-                          </div>
-                          <div>
-                              <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Inference Engine</p>
-                              <p className="text-xs text-sky-400 font-bold">Groq Multi-Tier LLM</p>
-                          </div>
-                          <div>
-                              <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Embeddings</p>
-                              <p className="text-xs text-sky-400 font-bold">Google Gemini (text-004)</p>
-                          </div>
-                          <div>
-                              <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Semantic DB</p>
-                              <p className="text-xs text-sky-400 font-bold">ChromaDB Local</p>
-                          </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-3 opacity-50">
-                          <div className="w-8 h-8 bg-white text-black flex items-center justify-center font-sans font-black text-xs rounded-sm">SU.</div>
-                          <span className="text-[10px] tracking-widest uppercase font-bold">AI.Core_v3</span>
-                      </div>
-                  </div>
-
-                  {/* Right Terminal (Logs & Telemetry) */}
-                  <div className="flex-1 p-4 md:p-8 flex flex-col bg-transparent">
-                      
-                      {/* Scrolling Logs Window */}
-                      <div className="flex-1 overflow-hidden flex flex-col justify-end pb-4 border-b border-white/10 relative">
-                          <div className="absolute top-0 left-0 w-full h-12 bg-gradient-to-b from-[#020202] to-transparent z-10"></div>
-                          <div className="space-y-2.5 text-[10px] md:text-[12px] text-emerald-400/90 drop-shadow-[0_0_5px_rgba(52,211,153,0.3)]">
-                              {terminalLogs.map((log, idx) => (
-                                  <div key={idx} className="animate-fadeIn">
-                                      <span className="text-slate-500 mr-2">{">"}</span> {log}
-                                  </div>
-                              ))}
-                              {/* Blinking Cursor */}
-                              <div className="animate-pulse inline-block w-2 h-4 bg-emerald-400/80 ml-1 translate-y-1"></div>
-                          </div>
-                      </div>
-
-                      {/* Telemetry Dashboard (The Core Flex) */}
-                      <div className="pt-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 bg-[#020202]">
-                          <div className="space-y-3 max-w-xl">
-                              <div className="inline-flex items-center gap-2 border border-amber-500/30 bg-amber-500/10 text-amber-500 px-3 py-1 rounded-md text-[10px] font-bold tracking-widest uppercase">
-                                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
-                                  System Telemetry Alert
-                              </div>
-                              <p className="text-[10px] md:text-[11px] text-slate-400 leading-relaxed">
-                                  Cloud instance cold-start detected. The backend framework is actively spinning up heavy AI modules, LLM pipelines, and vector databases from sleep state. The cinematic UI will mount automatically upon successful payload handshake.
-                              </p>
-                          </div>
-                          
-                          <div className="text-left sm:text-right shrink-0">
-                              <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">Elapsed Boot Time</div>
-                              <div className="text-3xl md:text-4xl text-sky-400 font-black animate-pulse drop-shadow-[0_0_15px_rgba(14,165,233,0.4)]">
-                                  T+ {formatTimer(elapsedTime)}
-                              </div>
-                          </div>
-                      </div>
-
+          <div className="fixed inset-0 z-[99999] bg-[#050505] flex flex-col items-center justify-center select-none">
+              <div className="flex flex-col items-center space-y-4">
+                  <span className="font-mono text-sm tracking-[0.4em] text-white/90 font-semibold">MSU</span>
+                  <div className="w-24 h-[1.5px] bg-white/10 relative overflow-hidden rounded-full">
+                      <div className="w-10 h-full bg-white absolute animate-[shimmer_1.4s_infinite]"></div>
                   </div>
               </div>
           </div>
-
       ) : (
 
         // ==============================================================
-        // 🌟 MAIN APPLICATION UI (ONLY RENDERS WHEN LOADING IS FALSE) 🌟
+        // 🌟 MAIN APPLICATION VIEW 🌟
         // ==============================================================
         <>
-          <nav className="fixed w-full border-b border-white/5 bg-[#020202]/80 backdrop-blur-2xl z-50 px-4 md:px-8 py-3 flex items-center justify-between transition-all duration-300">
-            <div className="flex items-center gap-3 group cursor-pointer" onClick={() => handleNavClick('portfolio', 'top')}>
-              <div className="flex items-center justify-center w-8 h-8 md:w-10 md:h-10 bg-white text-black rounded-sm group-hover:bg-sky-500 transition-colors duration-300">
-                 <span className="font-sans font-black tracking-tighter text-sm md:text-base">SU.</span>
-              </div>
-              <div className="flex flex-col justify-center">
-                <span className="text-xs md:text-sm font-bold tracking-[0.15em] text-slate-100 uppercase">
-                  Md Salik <span className="text-sky-500">Ubair</span>
-                </span>
-                <span className="text-[8px] md:text-[9px] text-slate-500 uppercase tracking-[0.2em] font-mono mt-0.5">
-                  AI Engineer System
-                </span>
-              </div>
+          {/* NAVIGATION BAR */}
+          <nav className="fixed w-full border-b border-white/[0.04] bg-[#050505]/80 backdrop-blur-2xl z-50 px-6 md:px-12 py-5 flex items-center justify-between transition-all">
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavClick('portfolio', 'top')}>
+              <span className="font-mono text-xs font-semibold tracking-widest text-slate-300 hover:text-white transition-colors">
+                MSU
+              </span>
             </div>
 
-            <div className="hidden lg:flex items-center gap-8">
+            <div className="hidden md:flex items-center gap-8">
                 {navLinks.map((link, idx) => (
                     <button 
-                    key={idx}
-                    onClick={() => handleNavClick(link.view, link.section)}
-                    className="text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400 hover:text-sky-400 transition-colors">
-                    {link.label}
+                        key={idx}
+                        onClick={() => handleNavClick(link.view, link.section)}
+                        className="text-xs font-medium tracking-wider text-slate-400 hover:text-white transition-colors"
+                    >
+                        {link.label}
                     </button>
                 ))}
-                {/* TOP NAVBAR PRIORITY CTA */}
-                {currentView === 'portfolio' && (
-                    <button onClick={() => setIsContactModalOpen(true)} className="ml-4 relative group">
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full blur opacity-40 group-hover:opacity-100 transition duration-500"></div>
-                        <div className="relative bg-black border border-white/10 text-white px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest group-hover:text-sky-300 transition-colors flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-pulse"></div> Initiate Outreach
-                        </div>
-                    </button>
-                )}
             </div>
 
-            <div className="lg:hidden flex items-center gap-4">
-                 {currentView === 'portfolio' && (
-                     <button onClick={() => setIsContactModalOpen(true)} className="relative group">
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full blur opacity-50"></div>
-                        <div className="relative bg-black text-white px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5">
-                            <div className="w-1 h-1 bg-sky-500 rounded-full animate-pulse"></div> Outreach
-                        </div>
-                     </button>
-                 )}
-                 <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white p-2 text-xl hover:text-sky-400 transition-colors">
+            <div className="md:hidden flex items-center">
+                 <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white p-2 text-lg hover:text-slate-300 transition-colors">
                      {isMobileMenuOpen ? '✕' : '☰'}
                  </button>
             </div>
           </nav>
 
+          {/* MOBILE MENU */}
           {isMobileMenuOpen && (
-              <div className="fixed top-[64px] left-0 w-full bg-[#050505]/95 backdrop-blur-xl border-b border-white/10 z-40 lg:hidden flex flex-col p-4 space-y-2 shadow-2xl animate-fadeIn">
+              <div className="fixed top-[65px] left-0 w-full bg-[#050505]/95 backdrop-blur-3xl border-b border-white/5 z-40 md:hidden flex flex-col p-6 space-y-4 shadow-2xl animate-fadeIn">
                   {navLinks.map((link, idx) => (
                       <button 
-    key={idx}
-    onClick={() => handleNavClick(link.view, link.section)}
-    className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-white/5 w-full text-left py-4 px-4 rounded-xl transition-all border border-transparent hover:border-white/10"
->
-    {link.label}
-</button>
+                          key={idx}
+                          onClick={() => handleNavClick(link.view, link.section)}
+                          className="text-sm font-medium tracking-widest text-slate-300 hover:text-white py-2 text-left transition-all"
+                      >
+                          {link.label}
+                      </button>
                   ))}
               </div>
           )}
 
-          {/* 🚀 NEW: SYSTEM ARCHITECTURE WHITEPAPER MODAL 🚀 */}
-          {isWhitepaperOpen && (
-              <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-fadeIn" onClick={() => setIsWhitepaperOpen(false)}>
-                  <div className="bg-[#050505] border border-emerald-500/20 w-full max-w-5xl rounded-3xl shadow-[0_0_100px_rgba(16,185,129,0.15)] relative overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-sky-500"></div>
-                      <button onClick={() => setIsWhitepaperOpen(false)} className="absolute top-5 right-5 text-slate-400 hover:text-white bg-white/5 w-10 h-10 rounded-full flex items-center justify-center transition-colors z-20 hover:bg-red-500">✕</button>
-                      
-                      <div className="p-8 md:p-10 border-b border-white/5 bg-[#0a0a0a] flex-shrink-0">
-                          <div className="flex items-center gap-3 mb-2">
-                              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                              <span className="text-[10px] font-mono text-emerald-400 tracking-widest uppercase">System Design Overview</span>
-                          </div>
-                          <h3 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight">The "Digital Twin" Architecture</h3>
-                          <p className="text-xs md:text-sm text-slate-400 mt-3 leading-relaxed max-w-3xl">
-                              This portfolio is not a static webpage. It is a full-stack, production-grade <strong>Retrieval-Augmented Generation (RAG)</strong> application designed to showcase enterprise-level AI engineering, inference optimization, and system resilience.
-                          </p>
-                      </div>
-
-                      <div className="p-8 md:p-10 overflow-y-auto space-y-12" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                          
-                          {/* Section 1: The RAG Pipeline */}
-                          <div className="space-y-6">
-                              <h4 className="text-lg font-bold text-white border-b border-white/10 pb-2">1. The Neural Pipeline (Vector Search & Generation)</h4>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                  <div className="bg-[#111] border border-white/5 p-5 rounded-2xl">
-                                      <div className="text-sky-400 mb-2">① Vectorization</div>
-                                      <h5 className="font-bold text-sm text-white mb-2">Google Gemini 768-D</h5>
-                                      <p className="text-[11px] text-slate-400 leading-relaxed">Incoming user queries and backend JSON data are embedded into 768-dimensional space using Google's <code>text-embedding-004</code> model for high-accuracy semantic capturing.</p>
-                                  </div>
-                                  <div className="bg-[#111] border border-white/5 p-5 rounded-2xl">
-                                      <div className="text-sky-400 mb-2">② Semantic Retrieval</div>
-                                      <h5 className="font-bold text-sm text-white mb-2">ChromaDB / FAISS</h5>
-                                      <p className="text-[11px] text-slate-400 leading-relaxed">The system performs an L2 (Cosine Distance) similarity search across the local vector database, retrieving the Top-K (K=6) most contextually relevant document chunks.</p>
-                                  </div>
-                                  <div className="bg-[#111] border border-white/5 p-5 rounded-2xl">
-                                      <div className="text-sky-400 mb-2">③ LLM Inference</div>
-                                      <h5 className="font-bold text-sm text-white mb-2">Groq Llama-3.3 70B</h5>
-                                      <p className="text-[11px] text-slate-400 leading-relaxed">The retrieved facts are injected into a strict zero-hallucination prompt. Groq's LPU inference engine processes the 70B parameter model to generate a professional response in under ~850ms.</p>
-                                  </div>
-                              </div>
-                          </div>
-
-                          {/* Section 2: Audio Synthesis */}
-                          <div className="space-y-4">
-                              <h4 className="text-lg font-bold text-white border-b border-white/10 pb-2">2. Multi-Modal Audio Synthesis</h4>
-                              <div className="bg-[#111] border border-white/5 p-6 rounded-2xl flex flex-col md:flex-row gap-6 items-center">
-                                  <div className="flex-1 space-y-3">
-                                      <p className="text-xs text-slate-300 leading-relaxed">
-                                          Text responses are piped through Microsoft's <strong>Edge-TTS</strong> neural voice synthesis engine. The system dynamically strips markdown and code blocks, optimizing the plain text for a natural, 24kHz Indian-English accent stream (<code>en-IN-PrabhatNeural</code>). 
-                                      </p>
-                                      <p className="text-xs text-slate-300 leading-relaxed">
-                                          The frontend synchronizes the incoming audio blob with HTML5 video elements, creating a seamless "Virtual Avatar" presence that reacts to the inference state (Idle, Thinking, Answering).
-                                      </p>
-                                  </div>
-                                  <div className="w-full md:w-1/3 bg-black border border-white/10 rounded-xl p-4 font-mono text-[9px] text-emerald-400 whitespace-pre-wrap">
-                                      {`async def _generate():\n  communicate = edge_tts.Communicate(\n    clean_text,\n    voice="en-IN-PrabhatNeural"\n  )\n  await communicate.save(filepath)`}
-                                  </div>
-                              </div>
-                          </div>
-
-                          {/* Section 3: Engineering Resilience */}
-                          <div className="space-y-4">
-                              <h4 className="text-lg font-bold text-white border-b border-white/10 pb-2">3. Production-Grade Fallbacks & Resilience</h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="bg-amber-500/5 border border-amber-500/20 p-5 rounded-2xl">
-                                      <h5 className="font-bold text-sm text-amber-500 mb-2">Automated LLM Routing</h5>
-                                      <p className="text-[11px] text-slate-400 leading-relaxed">If the primary 120B/70B model encounters a rate limit or API block, LangChain's <code>.with_fallbacks()</code> instantly reroutes the request to a faster 20B/8B model with zero downtime or error flags visible to the user.</p>
-                                  </div>
-                                  <div className="bg-sky-500/5 border border-sky-500/20 p-5 rounded-2xl">
-                                      <h5 className="font-bold text-sm text-sky-500 mb-2">Self-Healing Database</h5>
-                                      <p className="text-[11px] text-slate-400 leading-relaxed">If the backend cloud instance restarts and clears temporary memory, the Python service detects the missing vector directory and automatically rebuilds and re-chunks the entire ChromaDB from the master JSON payload in real-time.</p>
-                                  </div>
-                              </div>
-                          </div>
-
-                      </div>
-                  </div>
-              </div>
-          )}
-
-          {isContactModalOpen && (
-            <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn" onClick={() => setIsContactModalOpen(false)}>
-                <div className="bg-[#050505] border border-white/10 w-full max-w-4xl rounded-2xl shadow-[0_0_80px_rgba(14,165,233,0.15)] relative overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-500 to-indigo-500"></div>
-                    <button onClick={() => setIsContactModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white bg-white/5 w-8 h-8 rounded-full flex items-center justify-center transition-colors z-20">✕</button>
-                    
-                    <div className="p-5 md:p-8 border-b border-white/5 bg-[#0a0a0a] flex-shrink-0">
-                        <h3 className="text-xl md:text-2xl font-bold text-white tracking-wide">Outreach Synthesizer</h3>
-                        <p className="text-[10px] md:text-xs text-slate-400 mt-2 leading-relaxed max-w-2xl">
-                            Provide a brief context or objective below. The core AI Engine will dynamically construct a polished, professional outreach draft explicitly tailored to your scenario, which you can then send via direct official channels.
-                        </p>
-                    </div>
-
-                    <div className="p-5 md:p-8 flex flex-col lg:flex-row gap-6 lg:gap-8 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                        <div className="flex-1 flex flex-col space-y-4">
-                            <label className="text-[10px] text-sky-400 font-mono tracking-widest uppercase flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse"></div> Context Input
-                            </label>
-                            <textarea 
-                                rows={4} 
-                                placeholder="e.g., 'Draft a message to invite him to interview for an AI Engineer role at our Deloitte team...'" 
-                                value={draftContext} 
-                                onChange={e => setDraftContext(e.target.value)} 
-                                className="w-full flex-1 min-h-[120px] bg-[#111] border border-white/5 focus:border-sky-500/50 rounded-xl px-4 py-4 text-xs md:text-sm text-white outline-none resize-none transition-all placeholder:text-slate-600 shadow-inner" 
-                            />
-                            <button 
-                                onClick={generateOutreachDraft} 
-                                disabled={!draftContext.trim() || isDrafting} 
-                                className="w-full bg-white text-black font-bold text-[10px] md:text-xs py-3.5 rounded-xl hover:bg-slate-200 transition-all uppercase tracking-widest disabled:opacity-50 flex-shrink-0 shadow-[0_0_15px_rgba(255,255,255,0.1)]"
-                            >
-                                {isDrafting ? 'Synthesizing with AI Core...' : 'Generate Professional Message'}
-                            </button>
-                        </div>
-
-                        <div className="flex-1 flex flex-col space-y-4">
-                            <label className="text-[10px] text-slate-500 font-mono tracking-widest uppercase flex items-center justify-between">
-                                <span>Generated Output</span>
-                                {isCopied && <span className="text-emerald-400 animate-fadeIn font-bold">Copied to Clipboard! ✓</span>}
-                            </label>
-                            
-                            <div className="flex-1 bg-[#111] border border-white/5 rounded-xl p-5 relative group min-h-[160px] flex flex-col shadow-inner">
-                                {isDrafting ? (
-                                    <div className="h-full w-full flex flex-col items-center justify-center text-sky-500/50 font-mono space-y-3">
-                                        <div className="w-5 h-5 border-2 border-t-transparent border-sky-500 rounded-full animate-spin"></div>
-                                        <span className="text-xs animate-pulse">Analyzing context & routing to LLM...</span>
-                                    </div>
-                                ) : draftedMessage ? (
-                                    <>
-                                        <div className="text-xs md:text-sm text-slate-300 whitespace-pre-wrap leading-relaxed pb-10 flex-1 overflow-y-auto scrollbar-hide">{draftedMessage}</div>
-                                        <button onClick={handleCopyDraft} className="absolute bottom-4 right-4 bg-sky-600 hover:bg-sky-500 text-white px-5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-sky-500/20">Copy Text</button>
-                                    </>
-                                ) : (
-                                    <div className="h-full flex items-center justify-center text-slate-600 text-[10px] md:text-xs font-mono text-center px-4">
-                                        Awaiting context to synthesize a highly formatted outreach message.
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="pt-2 flex-shrink-0">
-                                <label className="text-[9px] md:text-[10px] text-slate-500 font-mono tracking-widest uppercase mb-3 block">Route via Official Channels</label>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    {backendData?.social_channels?.linkedin && (
-                                        <a href={backendData.social_channels.linkedin} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 p-3 bg-[#0a66c2]/10 border border-[#0a66c2]/30 hover:bg-[#0a66c2]/20 text-[#0a66c2] rounded-xl transition-all text-[10px] font-bold uppercase tracking-wider shadow-sm">
-                                            LinkedIn
-                                        </a>
-                                    )}
-                                    {backendData?.social_channels?.email && (
-                                        <button onClick={handleEmailClick} className="flex items-center justify-center gap-2 p-3 bg-indigo-500/10 border border-indigo-500/30 hover:bg-indigo-500/20 text-indigo-400 rounded-xl transition-all text-[10px] font-bold uppercase tracking-wider shadow-sm">
-                                            Email
-                                        </button>
-                                    )}
-                                    {backendData?.profile_core?.whatsapp_link && (
-                                        <a href={backendData.profile_core.whatsapp_link} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400 rounded-xl transition-all text-[10px] font-bold uppercase tracking-wider shadow-sm">
-                                            WhatsApp
-                                        </a>
-                                    )}
-                                    {backendData?.social_channels?.instagram && (
-                                        <a href={backendData.social_channels.instagram} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 p-3 bg-pink-500/10 border border-pink-500/30 hover:bg-pink-500/20 text-pink-400 rounded-xl transition-all text-[10px] font-bold uppercase tracking-wider shadow-sm">
-                                            Instagram
-                                        </a>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-          )}
-
+          {/* ITEM PREVIEW MODAL */}
           {viewingNode && (
-            <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 md:p-10 bg-black/90 backdrop-blur-2xl animate-fadeIn" onClick={() => setViewingNode(null)}>
-                <div className="bg-[#050505] border border-white/10 w-full h-full md:w-full md:max-w-4xl md:h-auto md:max-h-[90vh] md:rounded-3xl overflow-y-auto shadow-[0_0_100px_rgba(0,0,0,1)] relative scrollbar-hide" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => setViewingNode(null)} className="absolute top-4 right-4 md:top-6 md:right-6 w-10 h-10 bg-black/60 hover:bg-red-500 text-white rounded-full flex items-center justify-center border border-white/20 transition-colors z-50 font-bold backdrop-blur-xl">✕</button>
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 md:p-10 bg-black/90 backdrop-blur-xl animate-fadeIn" onClick={() => setViewingNode(null)}>
+                <div className="bg-[#0a0a0a] border border-white/[0.04] w-full h-full md:w-full md:max-w-3xl md:h-auto md:max-h-[85vh] md:rounded-3xl overflow-y-auto shadow-2xl relative scrollbar-hide" onClick={e => e.stopPropagation()}>
+                    <button onClick={() => setViewingNode(null)} className="absolute top-5 right-5 w-8 h-8 bg-black/60 hover:bg-white/10 text-white rounded-full flex items-center justify-center border border-white/10 transition-colors z-50 text-sm">✕</button>
                     
-                    <div className="w-full h-56 md:h-80 relative bg-black flex items-end">
+                    <div className="w-full h-56 md:h-72 relative bg-black flex items-end">
                         {viewingNode?.image_urls?.length > 0 && (
-                            <img src={viewingNode.image_urls[0]} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-50 blur-[2px]" />
+                            <img src={viewingNode.image_urls[0]} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent z-10" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent z-10" />
                         
-                        <div className="relative z-20 p-6 md:p-12 w-full translate-y-6">
-                            <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2">
-                                <span className="bg-sky-500/20 text-sky-400 text-[10px] md:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-sky-500/30">{viewingNode._category?.replace(/_/g, ' ')}</span>
-                                <span className="text-xs md:text-sm font-mono text-slate-400 bg-black/50 px-3 py-1 rounded-full backdrop-blur-md">{viewingNode.duration_or_date}</span>
+                        <div className="relative z-20 p-6 md:p-10 w-full">
+                            <div className="flex flex-wrap items-center gap-3 mb-2 text-xs text-slate-400 font-mono">
+                                <span className="uppercase tracking-widest">{viewingNode._category?.replace(/_/g, ' ')}</span>
+                                <span className="text-slate-600">•</span>
+                                <span>{viewingNode.duration_or_date}</span>
                             </div>
-                            <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight drop-shadow-lg">{viewingNode.title}</h2>
-                            <p className="text-base md:text-xl text-indigo-300 font-medium mt-2">{viewingNode.organization_or_issuer}</p>
+                            <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">{viewingNode.title}</h2>
+                            <p className="text-sm md:text-base text-slate-400 font-medium mt-2">{viewingNode.organization_or_issuer}</p>
                         </div>
                     </div>
                     
-                    <div className="p-6 md:p-12 pt-10 md:pt-16 space-y-6 md:space-y-8 relative z-20">
+                    <div className="p-6 md:p-10 space-y-8 relative z-20">
                         {viewingNode.tag_or_skills_mapped && (
                             <div className="flex flex-wrap gap-2">
                                 {viewingNode.tag_or_skills_mapped.split(',').map((skill, i) => (
-                                    <div key={i} className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-slate-200 text-[10px] md:text-xs font-medium px-3 py-1.5 rounded-full">
-                                        <img src={getSkillIconUrl(skill)} alt="" className="w-3 h-3 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+                                    <span key={i} className="text-slate-400 text-[11px] font-mono border border-white/5 bg-white/[0.02] px-3 py-1 rounded-full">
                                         {skill.trim()}
-                                    </div>
+                                    </span>
                                 ))}
                             </div>
                         )}
@@ -1010,21 +576,21 @@ function App() {
                         </div>
 
                         {viewingNode?.image_urls?.length > 1 && (
-                            <div className="mt-8 space-y-4">
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Additional Assets / Certificates</h4>
+                            <div className="space-y-4">
+                                <h4 className="text-xs font-mono uppercase tracking-wider text-slate-500">Supporting Assets</h4>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                     {viewingNode.image_urls.slice(1).map((img, idx) => (
-                                        <a href={img} target="_blank" rel="noreferrer" key={idx} className="block aspect-video rounded-xl overflow-hidden border border-white/10 hover:border-sky-500 transition-colors">
-                                            <img src={img} alt="Certificate/Asset" className="w-full h-full object-cover hover:scale-105 transition-transform" />
+                                        <a href={img} target="_blank" rel="noreferrer" key={idx} className="block aspect-video rounded-xl overflow-hidden border border-white/10 hover:border-white/30 transition-colors">
+                                            <img src={img} alt="" className="w-full h-full object-cover" />
                                         </a>
                                     ))}
                                 </div>
                             </div>
                         )}
 
-                        <div className="flex flex-wrap gap-3 md:gap-4 pt-6 md:pt-8 border-t border-white/10">
+                        <div className="flex flex-wrap gap-4 pt-6 border-t border-white/[0.04]">
                             {viewingNode.smart_links?.map((link, idx) => (
-                                <a key={idx} href={link.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-white text-black hover:bg-sky-400 text-xs md:text-sm font-bold px-5 py-2.5 md:px-6 md:py-3 rounded-xl transition-transform hover:-translate-y-1 shadow-[0_5px_15px_rgba(255,255,255,0.1)]">
+                                <a key={idx} href={link.url} target="_blank" rel="noreferrer" className="text-white hover:text-slate-300 text-sm font-medium transition-colors inline-flex items-center gap-1.5 border border-white/10 px-5 py-2.5 rounded-full">
                                     {link.label} ↗
                                 </a>
                             ))}
@@ -1034,344 +600,344 @@ function App() {
             </div>
           )}
 
-          <main className="max-w-7xl mx-auto p-4 md:p-8 pt-24 md:pt-32 pb-16 relative z-10">
+          {/* MAIN DESKTOP WORKSPACE */}
+          <main className="max-w-6xl mx-auto px-5 md:px-12 pt-28 md:pt-40 pb-24 relative z-10">
             {currentView === 'portfolio' ? (
-              <div className="space-y-12 md:space-y-16 animate-fadeIn">
+              <div className="space-y-24 md:space-y-36 animate-fadeIn">
                 
-                {/* HERO SECTION */}
-                <div className="relative flex flex-col-reverse lg:flex-row items-center justify-between gap-8 md:gap-12 p-6 md:p-12 border border-white/10 bg-white/[0.02] rounded-[2rem] md:rounded-[2.5rem] backdrop-blur-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-sky-400 to-indigo-600" />
+                {/* 🚀 HERO SECTION (NO BOXES, CIRCULAR DP, CLEAN TEXT LINKS) 🚀 */}
+                <div className="flex flex-col-reverse md:flex-row items-center justify-between gap-12 md:gap-16 pt-4">
                   
-                  <div className="flex-1 space-y-5 md:space-y-6 relative z-10 w-full text-center lg:text-left">
-                    <h1 className="text-4xl md:text-5xl lg:text-7xl font-extrabold tracking-tighter text-white">
-                      {backendData?.profile_core?.full_name || "Md Salik Ubair"}
-                    </h1>
-                    
-                    <div className="flex flex-col lg:flex-row items-center lg:items-start gap-2 text-base md:text-xl text-sky-400 font-medium tracking-wide lg:border-l-2 lg:border-indigo-500 lg:pl-4">
-                      <span>{backendData?.profile_core?.professional_title || "Update Title in Dashboard"}</span>
-                      {backendData?.profile_core?.location && (
-                          <div className="flex items-center gap-2">
-                              <span className="hidden lg:inline text-slate-500">•</span>
-                              <span className="text-slate-300 text-xs md:text-sm bg-white/5 lg:bg-transparent px-3 py-1 lg:px-0 lg:py-0 rounded-full">{backendData.profile_core.location}</span>
-                          </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap justify-center lg:justify-start gap-3 text-xs md:text-sm mt-4">
-                      {backendData?.profile_core?.phone_number && <span className="bg-white/5 border border-white/10 px-3 py-2 md:px-4 md:py-2 rounded-lg text-slate-300">📞 {backendData.profile_core.phone_number}</span>}
-                      {backendData?.social_channels?.email && <a href={`mailto:${backendData.social_channels.email}`} target="_blank" rel="noreferrer" className="bg-white/5 border border-white/10 px-3 py-2 md:px-4 md:py-2 rounded-lg text-slate-300 hover:bg-white/10 transition-colors">✉️ Email</a>}
-                      {backendData?.social_channels?.linkedin && <a href={backendData.social_channels.linkedin} target="_blank" rel="noreferrer" className="bg-white/5 border border-white/10 px-3 py-2 md:px-4 md:py-2 rounded-lg text-sky-400 hover:bg-white/10 transition-colors">LinkedIn ↗</a>}
-                      {backendData?.social_channels?.github && <a href={backendData.social_channels.github} target="_blank" rel="noreferrer" className="bg-white/5 border border-white/10 px-3 py-2 md:px-4 md:py-2 rounded-lg text-slate-300 hover:bg-white/10 transition-colors">GitHub ↗</a>}
-                      
-                      {backendData?.profile_core?.whatsapp_link && (
-                        <a href={backendData.profile_core.whatsapp_link} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 md:px-4 md:py-2 rounded-lg text-emerald-400 hover:bg-emerald-500/20 transition-colors font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                            💬 WhatsApp
-                        </a>
-                      )}
-
-                      {backendData?.social_channels?.instagram && (
-                        <a href={backendData.social_channels.instagram} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:opacity-90 transition-opacity font-bold shadow-[0_0_10px_rgba(236,72,153,0.3)]">
-                            📸 Instagram
-                        </a>
-                      )}
-
-                      {backendData?.profile_core?.master_cv_url && <a href={backendData.profile_core.master_cv_url} target="_blank" rel="noreferrer" className="bg-sky-500 text-black font-bold px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-sky-400 transition-colors shadow-[0_0_15px_rgba(14,165,233,0.3)]">📄 View Full Resume</a>}
+                  <div className="flex-1 space-y-8 text-center md:text-left">
+                    <div className="space-y-4">
+                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-tight">
+                          {backendData?.profile_core?.full_name || "Md Salik Ubair"}
+                        </h1>
+                        <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-base md:text-xl text-slate-300 font-medium">
+                          <span>{backendData?.profile_core?.professional_title || "AI Systems Engineer"}</span>
+                          {backendData?.profile_core?.location && (
+                              <span className="text-slate-500 font-mono text-xs md:text-sm font-normal">— {backendData.profile_core.location}</span>
+                          )}
+                        </div>
                     </div>
 
                     {backendData?.profile_core?.profile_summary && (
-                        <p className="text-slate-400 text-xs md:text-sm leading-relaxed max-w-2xl lg:border-t lg:border-white/5 lg:pt-4 lg:mt-4 mx-auto lg:mx-0">
+                        <p className="text-slate-400 text-sm md:text-base leading-relaxed max-w-2xl mx-auto md:mx-0 font-normal">
                             {backendData.profile_core.profile_summary}
                         </p>
                     )}
+
+                    {/* CLEAN TEXT LINKS (NO BOXES) */}
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-6 gap-y-3 pt-4">
+                      {backendData?.profile_core?.phone_number && (
+                          <span className="inline-flex items-center gap-2 text-slate-400 text-xs md:text-sm font-mono cursor-default">
+                              <span className="opacity-70">📞</span> {backendData.profile_core.phone_number}
+                          </span>
+                      )}
+                      {backendData?.social_channels?.email && (
+                          <a href={`mailto:${backendData.social_channels.email}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-slate-300 hover:text-white transition-all text-xs md:text-sm group">
+                              <span className="opacity-70 group-hover:opacity-100 transition-opacity">✉️</span> 
+                              <span className="underline underline-offset-4 decoration-white/20 group-hover:decoration-white/100 transition-all">Email</span>
+                          </a>
+                      )}
+                      {backendData?.social_channels?.linkedin && (
+                          <a href={backendData.social_channels.linkedin} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-slate-300 hover:text-white transition-all text-xs md:text-sm group">
+                              <span className="opacity-70 group-hover:opacity-100 transition-opacity">🔗</span> 
+                              <span className="underline underline-offset-4 decoration-white/20 group-hover:decoration-white/100 transition-all">LinkedIn</span>
+                          </a>
+                      )}
+                      {backendData?.social_channels?.github && (
+                          <a href={backendData.social_channels.github} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-slate-300 hover:text-white transition-all text-xs md:text-sm group">
+                              <span className="opacity-70 group-hover:opacity-100 transition-opacity">💻</span> 
+                              <span className="underline underline-offset-4 decoration-white/20 group-hover:decoration-white/100 transition-all">GitHub</span>
+                          </a>
+                      )}
+                      {backendData?.social_channels?.instagram && (
+                          <a href={backendData.social_channels.instagram} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-slate-300 hover:text-white transition-all text-xs md:text-sm group">
+                              <span className="opacity-70 group-hover:opacity-100 transition-opacity">📸</span> 
+                              <span className="underline underline-offset-4 decoration-white/20 group-hover:decoration-white/100 transition-all">Instagram</span>
+                          </a>
+                      )}
+                      {backendData?.profile_core?.whatsapp_link && (
+                          <a href={backendData.profile_core.whatsapp_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-slate-300 hover:text-white transition-all text-xs md:text-sm group">
+                              <span className="opacity-70 group-hover:opacity-100 transition-opacity">💬</span> 
+                              <span className="underline underline-offset-4 decoration-white/20 group-hover:decoration-white/100 transition-all">WhatsApp</span>
+                          </a>
+                      )}
+                      {backendData?.profile_core?.master_cv_url && (
+                          <a href={backendData.profile_core.master_cv_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-white font-semibold transition-all text-xs md:text-sm group ml-2">
+                              <span>📄</span> 
+                              <span className="underline underline-offset-4 decoration-white/40 group-hover:decoration-white/100 transition-all">Resume ↗</span>
+                          </a>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="relative w-40 md:w-[250px] lg:w-[300px] flex-shrink-0 z-20 mx-auto group">
-                      <div className="absolute inset-0 bg-gradient-to-r from-sky-500 to-indigo-500 rounded-[2rem] blur-xl opacity-30 group-hover:opacity-60 transition-opacity duration-700 animate-pulse"></div>
-                      <div className="relative w-full aspect-[4/5] rounded-[1.5rem] md:rounded-[2rem] overflow-hidden border border-white/10 bg-black shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-                          <img src={backendData?.profile_core?.display_picture_url || avatarImg} alt="Profile" className="w-full h-full object-cover" />
-                      </div>
+                  {/* FOUNDER-LEVEL CIRCULAR AVATAR WITH SOFT GLOW */}
+                  <div className="relative w-48 h-48 md:w-64 md:h-64 lg:w-80 lg:h-80 shrink-0 mx-auto md:mx-0">
+                      <div className="absolute inset-0 bg-gradient-to-tr from-sky-400/10 to-indigo-400/10 rounded-full blur-2xl -z-10"></div>
+                      <img src={backendData?.profile_core?.display_picture_url || avatarImg} alt="Profile" className="w-full h-full object-cover rounded-full border border-white/5 shadow-2xl relative z-10" />
                   </div>
                 </div>
 
-                <div className="border border-white/10 bg-white/[0.02] backdrop-blur-xl rounded-3xl p-6 md:p-8 space-y-6">
-                  <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-widest">Engineering Stack & Proficiencies</h3>
-                  <div className="flex flex-wrap gap-3 md:gap-4">
+                {/* 🚀 CORE SKILLS (PILL TAGS, ORGANIZED & CLEAN) 🚀 */}
+                <div className="space-y-6 pt-4">
+                  <h3 className="text-xs font-mono uppercase tracking-[0.2em] text-slate-500">
+                    Core Proficiencies
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-3">
                     {backendData?.profile_core?.skills_list ? (
                       backendData.profile_core.skills_list.split(',').filter(s => s.trim() !== "").map((skill, index) => (
-                        <div key={index} className="flex items-center gap-2 bg-black border border-white/10 text-slate-200 text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-lg hover:border-sky-500/50 hover:bg-white/[0.04] transition-all cursor-default group">
+                        <div key={index} className="inline-flex items-center gap-2 bg-white/[0.02] border border-white/[0.06] text-slate-300 text-xs md:text-sm px-4 py-2 rounded-full font-mono cursor-default transition-colors hover:bg-white/[0.04]">
                           <img 
                               src={getSkillIconUrl(skill)} 
                               alt="" 
-                              className="w-4 h-4 md:w-5 md:h-5 object-contain group-hover:scale-110 transition-transform"
-                              onError={(e) => {
-                                  e.target.onerror = null; 
-                                  e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2338bdf8'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3C/svg%3E";
-                                  e.target.className = "w-2 h-2 opacity-50";
-                              }}
+                              className="w-4 h-4 object-contain"
+                              onError={(e) => { e.target.style.display = 'none'; }}
                           />
                           {skill.trim()}
                         </div>
                       ))
-                    ) : <span className="text-[10px] md:text-xs text-slate-600">No skills added yet.</span>}
+                    ) : <span className="text-xs text-slate-500 font-mono">Loading data...</span>}
                   </div>
                 </div>
 
+                {/* 🚀 CONTENT SECTIONS (GHOST CARDS, NO HARSH BOXES) 🚀 */}
                 {['experiences', 'projects', 'education', 'certifications_and_achievements'].map((sec) => {
                   if (!backendData || !backendData[sec] || backendData[sec].length === 0) return null;
                   const displayTitle = sec.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                   return (
-                    <div key={sec} id={`section-${sec}`} className="space-y-4 md:space-y-6 relative w-full scroll-mt-24">
-                      <h2 className="text-lg md:text-xl font-bold text-white uppercase tracking-widest border-b border-white/10 pb-3 md:pb-4 flex items-center gap-3">
-                         <div className="w-2 h-2 bg-sky-500 rounded-full" /> {displayTitle}
+                    <div key={sec} id={`section-${sec}`} className="space-y-8 scroll-mt-32">
+                      <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-slate-500 border-b border-white/[0.04] pb-4">
+                        {displayTitle}
                       </h2>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                         {(backendData[sec] || []).map((item) => {
                           return (
                             <div 
                                 key={item.id} 
                                 onClick={() => setViewingNode({...item, _category: sec})}
-                                className="group cursor-pointer border border-white/10 bg-white/[0.02] backdrop-blur-md rounded-2xl md:rounded-3xl p-5 md:p-8 hover:border-sky-500/50 hover:bg-white/[0.04] transition-all duration-300 shadow-xl hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(14,165,233,0.15)] flex flex-col justify-between relative overflow-hidden"
+                                className="group cursor-pointer bg-transparent border border-white/[0.04] hover:border-white/[0.08] hover:bg-white/[0.01] rounded-3xl p-6 md:p-8 transition-all duration-300 flex flex-col justify-between"
                             >
-                              <div className="space-y-3 md:space-y-4 pointer-events-none z-10 relative">
+                              <div className="space-y-4 pointer-events-none">
                                 {item.image_urls && item.image_urls.length > 0 && (
-                                  <div className="w-full h-48 md:h-56 rounded-xl overflow-hidden mb-4 border border-white/10 relative bg-[#050505]">
-                                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
-                                      <img src={item.image_urls[0]} alt="Preview" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-90 group-hover:opacity-100" />
+                                  <div className="w-full h-44 sm:h-52 rounded-2xl overflow-hidden mb-5 border border-white/[0.04] bg-[#070707]">
+                                      <img src={item.image_urls[0]} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
                                   </div>
                                 )}
-                                <div className="flex items-start justify-between gap-3 md:gap-4">
-                                  <h3 className="text-base md:text-xl font-bold text-white group-hover:text-sky-400 transition-colors line-clamp-2">{item.title}</h3>
-                                  <span className="text-[9px] md:text-[10px] font-mono bg-white/10 px-2 py-1 md:px-3 md:py-1 rounded-full text-slate-300 whitespace-nowrap flex-shrink-0">{item.duration_or_date}</span>
+                                <div className="flex items-start justify-between gap-4">
+                                  <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-slate-200 transition-colors leading-snug">{item.title}</h3>
+                                  <span className="text-[10px] sm:text-xs font-mono text-slate-500 shrink-0 text-right">{item.duration_or_date}</span>
                                 </div>
-                                <p className="text-xs md:text-sm font-semibold text-indigo-400">{item.organization_or_issuer}</p>
+                                <p className="text-sm font-medium text-slate-400">{item.organization_or_issuer}</p>
                                 
                                 {item.tag_or_skills_mapped && (
-                                    <div className="flex flex-wrap gap-1.5 pt-1">
-                                        {item.tag_or_skills_mapped.split(',').slice(0, 5).map((skill, i) => (
-                                            <div key={i} className="flex items-center gap-1 bg-black/50 border border-white/10 px-2 py-1 rounded-md">
-                                                <img src={getSkillIconUrl(skill)} alt="" className="w-3 h-3 object-contain" onError={(e) => { e.target.style.display='none' }} />
-                                                <span className="text-[9px] text-slate-300 font-medium">{skill.trim()}</span>
-                                            </div>
+                                    <div className="flex flex-wrap gap-x-3 gap-y-1.5 pt-1">
+                                        {item.tag_or_skills_mapped.split(',').slice(0, 4).map((skill, i) => (
+                                            <span key={i} className="text-slate-500 text-[11px] font-mono flex items-center">
+                                                {skill.trim()} {i !== 3 && i !== item.tag_or_skills_mapped.split(',').length - 1 && <span className="ml-3 opacity-30">•</span>}
+                                            </span>
                                         ))}
-                                        {item.tag_or_skills_mapped.split(',').length > 5 && <span className="text-[9px] text-slate-500 flex items-center px-1">+{item.tag_or_skills_mapped.split(',').length - 5}</span>}
                                     </div>
                                 )}
 
-                                <p className="text-xs md:text-sm text-slate-400 leading-relaxed line-clamp-3 mt-2">{item.description}</p>
+                                <p className="text-sm text-slate-400 leading-relaxed line-clamp-2 pt-2">{item.description}</p>
                               </div>
                               
-                              <div className="mt-4 md:mt-6 flex justify-end pt-3 md:pt-4 border-t border-white/5 pointer-events-none z-10 relative">
-                                  <span className="text-[10px] md:text-xs font-bold text-sky-500 group-hover:translate-x-2 transition-transform">View Details ↗</span>
+                              <div className="mt-6 flex justify-start pt-4 border-t border-white/[0.03] pointer-events-none">
+                                  <span className="text-xs font-medium text-slate-500 group-hover:text-white transition-colors flex items-center gap-2">Read Document <span className="group-hover:translate-x-1 transition-transform">→</span></span>
                               </div>
                             </div>
-                          )
+                          );
                         })}
                       </div>
                     </div>
                   );
                 })}
                 
-                <div className="mt-20 pt-12 md:pt-16 border-t border-white/5 text-center space-y-6 md:space-y-8 relative overflow-hidden">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-sky-500/30 to-transparent"></div>
-                    <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight">Ready to build the future?</h2>
-                    <p className="text-slate-400 text-xs md:text-sm max-w-xl mx-auto leading-relaxed">
-                        Use the Outreach Synthesizer to draft a customized professional message, or chat directly with my Digital Twin regarding AI architecture and backend engineering.
-                    </p>
-                    <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-4">
-                        <button onClick={() => setIsContactModalOpen(true)} className="relative group w-full sm:w-auto">
-                            <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500 to-indigo-500 rounded-xl blur opacity-40 group-hover:opacity-100 transition duration-500"></div>
-                            <div className="relative bg-black border border-white/10 hover:bg-sky-900/20 text-white font-bold px-8 py-3.5 rounded-xl transition-all text-xs md:text-sm uppercase tracking-widest text-center flex items-center justify-center gap-2">
-                                <div className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-pulse"></div> Initiate Outreach
-                            </div>
-                        </button>
-                        <button onClick={() => setIsChatOpen(true)} className="w-full sm:w-auto bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold px-8 py-3.5 rounded-xl transition-all text-xs md:text-sm uppercase tracking-widest">Chat with AI Twin</button>
+                {/* 🚀 EXECUTIVE DIRECT CONTACT & FOOTER 🚀 */}
+                <footer className="pt-24 md:pt-32 pb-8 text-center space-y-12">
+                    <div className="max-w-2xl mx-auto space-y-4">
+                        <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight">Let's connect.</h2>
+                        <p className="text-slate-400 text-sm md:text-base leading-relaxed">
+                            Open to advanced systems engineering roles, production architectures, and technical consultations.
+                        </p>
                     </div>
-                </div>
+
+                    <div className="flex flex-wrap items-center justify-center gap-4">
+                        {backendData?.social_channels?.email && (
+                            <a href={`mailto:${backendData.social_channels.email}`} className="bg-white hover:bg-slate-200 text-black font-semibold px-8 py-3.5 rounded-full transition-all text-sm font-medium">
+                                Send Email
+                            </a>
+                        )}
+                        {backendData?.social_channels?.linkedin && (
+                            <a href={backendData.social_channels.linkedin} target="_blank" rel="noreferrer" className="bg-white/10 hover:bg-white/20 text-white font-semibold px-8 py-3.5 rounded-full transition-all text-sm font-medium border border-white/5">
+                                LinkedIn Profile
+                            </a>
+                        )}
+                    </div>
+
+                    <div className="pt-16 flex flex-col items-center justify-center text-xs font-mono text-slate-600 gap-4">
+                        <span>© {new Date().getFullYear()} Md Salik Ubair.</span>
+                    </div>
+                </footer>
 
               </div>
             ) : !isAuthenticated ? (
               
-              <div className="max-w-md mx-auto my-20 md:my-32 border border-white/10 bg-[#050505]/80 rounded-[2rem] p-8 md:p-10 shadow-2xl backdrop-blur-2xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-500 to-indigo-500" />
-                <div className="text-center space-y-2 mb-8 md:mb-10">
-                  <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">System Login</h2>
+              <div className="max-w-md mx-auto my-20 border border-white/5 bg-[#0a0a0a] rounded-3xl p-8 md:p-10 shadow-2xl">
+                <div className="text-center space-y-1 mb-8">
+                  <h2 className="text-base font-bold text-white font-mono">Admin Authorization</h2>
+                  <p className="text-xs text-slate-500 font-mono">Enter security credentials to access hub</p>
                 </div>
-                <form onSubmit={handleLoginSubmit} className="space-y-4 md:space-y-5">
-                  <input type="text" value={username} required onChange={(e) => setUsername(e.target.value)} placeholder="Username" className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 md:py-3.5 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
-                  <input type="password" value={password} required onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 md:py-3.5 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
-                  <button type="submit" className="w-full bg-white text-black hover:bg-slate-200 font-bold text-xs md:text-sm py-3.5 md:py-4 rounded-xl transition-colors mt-2 md:mt-4">Authorize Access</button>
+                <form onSubmit={handleLoginSubmit} className="space-y-4">
+                  <input type="text" value={username} required onChange={(e) => setUsername(e.target.value)} placeholder="Username" className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-white/30 outline-none font-mono" />
+                  <input type="password" value={password} required onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-white/30 outline-none font-mono" />
+                  <button type="submit" className="w-full bg-white text-black hover:bg-slate-200 font-bold text-xs py-3.5 rounded-xl transition-colors font-mono uppercase tracking-wider">Access Hub</button>
                 </form>
               </div>
             ) : (
               
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 animate-fadeIn relative z-10">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn">
                  <div className="lg:col-span-1 space-y-6">
-                   <div className="border border-white/10 bg-[#050505]/60 backdrop-blur-2xl rounded-2xl md:rounded-3xl p-5 md:p-6 space-y-6 shadow-xl">
-                     <h2 className="text-xs md:text-sm font-bold text-white uppercase tracking-widest">Profile Matrix</h2>
-                     <div className="p-4 border border-dashed border-white/20 rounded-2xl bg-white/[0.02] text-center space-y-3">
-                        <div className="w-14 h-14 md:w-16 md:h-16 mx-auto rounded-full overflow-hidden border-2 border-sky-500/30">
-                            {profileForm.display_picture_url ? <img src={profileForm.display_picture_url} alt="DP" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-black flex items-center justify-center text-xl md:text-2xl">👤</div>}
+                   <div className="border border-white/5 bg-[#0a0a0a] rounded-3xl p-6 space-y-6">
+                     <h2 className="text-xs font-mono font-bold text-white uppercase tracking-widest">Master Profile Record</h2>
+                     <div className="p-4 border border-dashed border-white/10 rounded-2xl bg-white/[0.01] text-center space-y-3">
+                        <div className="w-14 h-14 mx-auto rounded-full overflow-hidden border border-white/20">
+                            {profileForm.display_picture_url ? <img src={profileForm.display_picture_url} alt="DP" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-black flex items-center justify-center text-xl">👤</div>}
                         </div>
                         <div>
-                            <label className="cursor-pointer bg-sky-600 hover:bg-sky-500 text-white text-[9px] md:text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 md:px-4 md:py-2 rounded-lg transition-colors inline-block">
-                                {isUploadingDP ? "Uploading..." : "Upload New Photo"}
+                            <label className="cursor-pointer bg-white text-black text-[10px] font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-lg inline-block font-mono">
+                                {isUploadingDP ? "Uploading..." : "Replace Avatar"}
                                 <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'dp')} className="hidden" disabled={isUploadingDP} />
                             </label>
                         </div>
                      </div>
 
                      <form onSubmit={handleProfileSubmit} className="space-y-4">
-                       <div className="p-3 md:p-4 bg-sky-900/10 border border-sky-500/30 rounded-xl space-y-3">
-                           <h3 className="text-[9px] md:text-[10px] font-bold text-sky-400 uppercase tracking-widest flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div>Master CV Details</h3>
-                           <input type="text" placeholder="CV Download Link (e.g. Google Drive)" value={profileForm.master_cv_url || ''} onChange={(e) => setProfileForm({...profileForm, master_cv_url: e.target.value})} className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
-                           <textarea rows={3} placeholder="Paste raw CV Text here for RAG Brain ingestion..." value={profileForm.master_cv_text || ''} onChange={(e) => setProfileForm({...profileForm, master_cv_text: e.target.value})} className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none resize-none transition-colors" />
+                       <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-3">
+                           <h3 className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-widest">Resume Corpus</h3>
+                           <input type="text" placeholder="CV Download Link" value={profileForm.master_cv_url || ''} onChange={(e) => setProfileForm({...profileForm, master_cv_url: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:border-white/30 outline-none font-mono" />
+                           <textarea rows={3} placeholder="Paste raw CV text for vector ingestion..." value={profileForm.master_cv_text || ''} onChange={(e) => setProfileForm({...profileForm, master_cv_text: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:border-white/30 outline-none resize-none font-mono" />
                        </div>
 
                        {['full_name', 'professional_title', 'location', 'phone_number', 'whatsapp_link', 'skills_list'].map((field) => (
                          <div key={field} className="space-y-1">
-                           <label className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase">{field.replace(/_/g, ' ')}</label>
-                           <input type="text" value={profileForm[field] || ''} onChange={(e) => setProfileForm({...profileForm, [field]: e.target.value})} className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
+                           <label className="text-[10px] font-mono text-slate-500 uppercase">{field.replace(/_/g, ' ')}</label>
+                           <input type="text" value={profileForm[field] || ''} onChange={(e) => setProfileForm({...profileForm, [field]: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:border-white/30 outline-none font-mono" />
                          </div>
                        ))}
                        
                        <div className="space-y-3 pt-2">
-                           <h3 className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-white/10 pb-2">Social & Contact Links</h3>
-                           
-                           <div className="space-y-1">
-                               <label className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase">Email Address</label>
-                               <input type="email" value={socialForm.email || ''} onChange={(e) => setSocialForm({...socialForm, email: e.target.value})} className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
-                           </div>
-                           
-                           <div className="space-y-1">
-                               <label className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase">LinkedIn Profile</label>
-                               <input type="url" value={socialForm.linkedin || ''} onChange={(e) => setSocialForm({...socialForm, linkedin: e.target.value})} className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
-                           </div>
-                           
-                           <div className="space-y-1">
-                               <label className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase">GitHub Profile</label>
-                               <input type="url" value={socialForm.github || ''} onChange={(e) => setSocialForm({...socialForm, github: e.target.value})} className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
-                           </div>
-
-                           <div className="space-y-1">
-                               <label className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase">Instagram Link</label>
-                               <input type="url" value={socialForm.instagram || ''} onChange={(e) => setSocialForm({...socialForm, instagram: e.target.value})} className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-colors" />
-                           </div>
+                           <h3 className="text-[10px] font-mono text-slate-400 uppercase tracking-widest border-b border-white/5 pb-2">Channels</h3>
+                           {['email', 'linkedin', 'github', 'instagram'].map((chan) => (
+                               <div key={chan} className="space-y-1">
+                                   <label className="text-[10px] font-mono text-slate-500 uppercase">{chan}</label>
+                                   <input type="text" value={socialForm[chan] || ''} onChange={(e) => setSocialForm({...socialForm, [chan]: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:border-white/30 outline-none font-mono" />
+                               </div>
+                           ))}
                        </div>
 
-                       <textarea rows={4} value={profileForm.profile_summary || ''} onChange={(e) => setProfileForm({...profileForm, profile_summary: e.target.value})} placeholder="Professional Summary" className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-sky-500 outline-none resize-none transition-colors" />
+                       <textarea rows={4} value={profileForm.profile_summary || ''} onChange={(e) => setProfileForm({...profileForm, profile_summary: e.target.value})} placeholder="Professional Summary" className="w-full bg-black border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:border-white/30 outline-none resize-none font-mono" />
                        
-                       <div className="p-3 md:p-4 bg-indigo-900/10 border border-indigo-500/30 rounded-xl space-y-3">
-                           <h3 className="text-[9px] md:text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></div>Family & Private Narrative</h3>
-                           <textarea rows={3} value={profileForm.family_narrative || ''} onChange={(e) => setProfileForm({...profileForm, family_narrative: e.target.value})} placeholder="Enter Family Details & Background Narrative here..." className="w-full bg-black border border-white/10 rounded-lg md:rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:border-indigo-500 outline-none resize-none transition-colors" />
-                       </div>
-
-                       <button type="submit" className="w-full bg-white text-black font-bold text-xs md:text-sm py-2.5 md:py-3 rounded-lg md:rounded-xl hover:bg-slate-200 transition-colors">Sync Master Data</button>
+                       <button type="submit" className="w-full bg-white text-black font-bold text-xs py-3 rounded-xl hover:bg-slate-200 transition-colors font-mono uppercase tracking-wider">Save Changes</button>
                      </form>
                    </div>
                  </div>
 
-                 <div className="lg:col-span-2 space-y-6 md:space-y-8 relative z-10">
-                    <div className={`border border-white/10 ${editingNode ? 'bg-sky-900/10 border-sky-500/50' : 'bg-[#050505]/60'} backdrop-blur-2xl rounded-2xl md:rounded-3xl p-5 md:p-8 space-y-5 md:space-y-6 shadow-xl transition-all duration-300`}>
+                 <div className="lg:col-span-2 space-y-6">
+                    <div className="border border-white/5 bg-[#0a0a0a] rounded-3xl p-6 md:p-8 space-y-6">
                       <div className="flex items-center justify-between">
-                          <h2 className="text-xs md:text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                              {editingNode ? <><div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" /> Editing Mode</> : 'Add New Portfolio Entry'}
+                          <h2 className="text-xs font-mono font-bold text-white uppercase tracking-widest">
+                              {editingNode ? "Editing Record" : "Add Portfolio Entry"}
                           </h2>
-                          {editingNode && <button type="button" onClick={cancelEdit} className="text-[10px] md:text-xs font-bold text-slate-400 hover:text-white transition-colors bg-white/5 px-2 py-1 md:px-3 md:py-1.5 rounded-lg border border-white/10">Cancel Edit ✕</button>}
+                          {editingNode && <button type="button" onClick={cancelEdit} className="text-[10px] font-mono text-slate-400 hover:text-white bg-white/5 px-2.5 py-1 rounded-md">Cancel ✕</button>}
                       </div>
                       
-                      <form onSubmit={handleItemSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 relative z-20">
-                        <select value={itemForm.category} disabled={editingNode} onChange={(e) => setItemForm({...itemForm, category: e.target.value})} className="md:col-span-2 bg-black border border-white/10 rounded-lg md:rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white outline-none focus:border-sky-500 transition-colors disabled:opacity-50">
+                      <form onSubmit={handleItemSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <select value={itemForm.category} disabled={editingNode} onChange={(e) => setItemForm({...itemForm, category: e.target.value})} className="md:col-span-2 bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none font-mono">
                           <option value="projects">Engineering Projects</option>
                           <option value="experiences">Professional Experience</option>
                           <option value="education">Academic Qualifications</option>
                           <option value="certifications_and_achievements">Certifications & Awards</option>
                         </select>
                         
-                        <div className="md:col-span-2 bg-black/40 p-4 md:p-5 rounded-xl md:rounded-2xl border border-dashed border-white/20 space-y-3 md:space-y-4">
-                            <label className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></div> Attach Visual Assets
-                                </div>
-                                <label className="cursor-pointer bg-white/10 hover:bg-white/20 text-white text-[9px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-lg transition-colors">
-                                    {isUploadingItemImg ? "Uploading..." : "+ Upload Image"}
+                        <div className="md:col-span-2 bg-black/40 p-4 rounded-xl border border-dashed border-white/10 space-y-3">
+                            <label className="text-[10px] font-mono text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                                <span>Images</span>
+                                <label className="cursor-pointer bg-white text-black text-[10px] font-bold px-2.5 py-1 rounded">
+                                    {isUploadingItemImg ? "Uploading..." : "+ Add"}
                                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'item')} className="hidden" disabled={isUploadingItemImg} />
                                 </label>
                             </label>
-                            <div className="flex flex-wrap gap-2 md:gap-3">
+                            <div className="flex flex-wrap gap-2">
                                 {itemForm.image_urls && itemForm.image_urls.length > 0 ? (
                                     itemForm.image_urls.map((imgUrl, idx) => (
-                                        <div key={idx} className="relative w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border border-white/20 group">
-                                            <img src={imgUrl} alt={`Upload ${idx}`} className="w-full h-full object-cover" />
-                                            <button type="button" onClick={() => removeUploadedImage(idx)} className="absolute inset-0 bg-red-500/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-[10px] md:text-xs font-bold">Remove</button>
+                                        <div key={idx} className="relative w-14 h-14 rounded-lg overflow-hidden border border-white/20 group">
+                                            <img src={imgUrl} alt="" className="w-full h-full object-cover" />
+                                            <button type="button" onClick={() => removeUploadedImage(idx)} className="absolute inset-0 bg-red-600/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs">✕</button>
                                         </div>
                                     ))
-                                ) : <p className="text-[10px] md:text-xs text-slate-500 font-mono">No images attached yet.</p>}
+                                ) : <p className="text-[11px] text-slate-600 font-mono">No images attached.</p>}
                             </div>
                         </div>
 
-                        <input type="text" placeholder="Title" value={itemForm.title} required onChange={(e) => setItemForm({...itemForm, title: e.target.value})} className="bg-black border border-white/10 rounded-lg md:rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white outline-none focus:border-sky-500 transition-colors" />
-                        <input type="text" placeholder="Organization / Issuer" value={itemForm.organization_or_issuer} onChange={(e) => setItemForm({...itemForm, organization_or_issuer: e.target.value})} className="bg-black border border-white/10 rounded-lg md:rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white outline-none focus:border-sky-500 transition-colors" />
-                        <input type="text" placeholder="Duration (e.g., 2023 - Present)" value={itemForm.duration_or_date} onChange={(e) => setItemForm({...itemForm, duration_or_date: e.target.value})} className="bg-black border border-white/10 rounded-lg md:rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white outline-none focus:border-sky-500 transition-colors" />
-                        <input type="text" placeholder="Skills Mapped" value={itemForm.tag_or_skills_mapped} onChange={(e) => setItemForm({...itemForm, tag_or_skills_mapped: e.target.value})} className="bg-black border border-white/10 rounded-lg md:rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white outline-none focus:border-sky-500 transition-colors" />
-                        <textarea rows={4} placeholder="Detailed Description Block (Public)" value={itemForm.description} onChange={(e) => setItemForm({...itemForm, description: e.target.value})} className="md:col-span-2 bg-black border border-white/10 rounded-lg md:rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white outline-none focus:border-sky-500 resize-none transition-colors" />
+                        <input type="text" placeholder="Title" value={itemForm.title} required onChange={(e) => setItemForm({...itemForm, title: e.target.value})} className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none font-mono" />
+                        <input type="text" placeholder="Organization / Issuer" value={itemForm.organization_or_issuer} onChange={(e) => setItemForm({...itemForm, organization_or_issuer: e.target.value})} className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none font-mono" />
+                        <input type="text" placeholder="Duration" value={itemForm.duration_or_date} onChange={(e) => setItemForm({...itemForm, duration_or_date: e.target.value})} className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none font-mono" />
+                        <input type="text" placeholder="Skills Mapped" value={itemForm.tag_or_skills_mapped} onChange={(e) => setItemForm({...itemForm, tag_or_skills_mapped: e.target.value})} className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none font-mono" />
+                        <textarea rows={4} placeholder="Public Description" value={itemForm.description} onChange={(e) => setItemForm({...itemForm, description: e.target.value})} className="md:col-span-2 bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none resize-none font-mono" />
                         
-                        {/* HIDDEN README FIELD */}
-                        <textarea rows={3} placeholder="Hidden Readme Context (Only for AI Brain)" value={itemForm.hidden_readme || ''} onChange={(e) => setItemForm({...itemForm, hidden_readme: e.target.value})} className="md:col-span-2 bg-sky-900/10 border border-sky-500/30 rounded-lg md:rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-sky-100 outline-none focus:border-sky-500 resize-none transition-colors" />
+                        <textarea rows={3} placeholder="Internal Readme Context (AI Vector Ingestion Only)" value={itemForm.hidden_readme || ''} onChange={(e) => setItemForm({...itemForm, hidden_readme: e.target.value})} className="md:col-span-2 bg-white/[0.02] border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-200 outline-none resize-none font-mono" />
 
-                        <div className="md:col-span-2 bg-black/40 p-4 md:p-5 rounded-xl md:rounded-2xl border border-white/5 space-y-3 md:space-y-4">
-                            <label className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div> Smart Links Configuration
-                            </label>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                                <input type="text" placeholder="Label (e.g. GitHub)" value={tempLink.label} onChange={(e) => setTempLink({...tempLink, label: e.target.value})} className="flex-1 bg-black border border-white/10 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm text-white outline-none focus:border-sky-500 transition-colors" />
-                                <input type="url" placeholder="URL Link" value={tempLink.url} onChange={(e) => setTempLink({...tempLink, url: e.target.value})} className="flex-[2] bg-black border border-white/10 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm text-white outline-none focus:border-sky-500 transition-colors" />
-                                <button type="button" onClick={addSmartLink} className="bg-sky-600 hover:bg-sky-500 text-white font-bold px-4 md:px-6 py-2 md:py-2.5 rounded-lg md:rounded-xl transition-colors">Add</button>
+                        <div className="md:col-span-2 bg-black/40 p-4 rounded-xl border border-white/5 space-y-3">
+                            <label className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Links</label>
+                            <div className="flex gap-2">
+                                <input type="text" placeholder="Label" value={tempLink.label} onChange={(e) => setTempLink({...tempLink, label: e.target.value})} className="flex-1 bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none font-mono" />
+                                <input type="url" placeholder="URL" value={tempLink.url} onChange={(e) => setTempLink({...tempLink, url: e.target.value})} className="flex-[2] bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none font-mono" />
+                                <button type="button" onClick={addSmartLink} className="bg-white text-black font-bold px-4 py-2 rounded-xl text-xs font-mono">Add</button>
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 {itemForm.smart_links && itemForm.smart_links.map((lnk, idx) => (
-                                    <span key={idx} className="flex items-center gap-2 bg-white/5 text-slate-200 text-[10px] md:text-xs font-semibold px-2 md:px-3 py-1 md:py-1.5 rounded-full border border-white/10 group cursor-pointer" title="Click 'X' to remove">
-                                        {lnk.label} <button type="button" onClick={() => removeSmartLink(idx)} className="text-red-400 hover:text-red-300 ml-1 font-bold group-hover:scale-125 transition-transform">✕</button>
+                                    <span key={idx} className="flex items-center gap-2 bg-white/5 text-slate-300 text-xs px-3 py-1 rounded-full border border-white/10 font-mono">
+                                        {lnk.label} <button type="button" onClick={() => removeSmartLink(idx)} className="text-red-400">✕</button>
                                     </span>
                                 ))}
                             </div>
                         </div>
 
-                        <button type="submit" className={`md:col-span-2 ${editingNode ? 'bg-amber-500 hover:bg-amber-400' : 'bg-sky-600 hover:bg-sky-500'} text-white font-bold text-xs md:text-sm py-3.5 md:py-4 rounded-lg md:rounded-xl transition-colors`}>
-                            {editingNode ? "Save Edited Entry" : "Save New Entry"}
+                        <button type="submit" className="md:col-span-2 bg-white text-black font-bold text-xs py-3.5 rounded-xl transition-colors font-mono uppercase tracking-wider">
+                            {editingNode ? "Update Entry" : "Add Entry"}
                         </button>
                       </form>
                     </div>
 
-                    <div className="border border-white/10 bg-[#050505]/60 backdrop-blur-2xl rounded-2xl md:rounded-3xl p-5 md:p-8 space-y-5 md:space-y-6 shadow-xl relative z-20">
-                      <h2 className="text-xs md:text-sm font-bold text-white uppercase tracking-widest flex items-center justify-between">
-                          Manage Portfolio Content
-                          <span className="text-[9px] md:text-[10px] text-slate-500">Edit / Reorder / Remove</span>
-                      </h2>
+                    <div className="border border-white/5 bg-[#0a0a0a] rounded-3xl p-6 md:p-8 space-y-4">
+                      <h2 className="text-xs font-mono font-bold text-white uppercase tracking-widest">Existing Records</h2>
                       {['education', 'projects', 'experiences', 'certifications_and_achievements'].map((category) => {
                         if (!backendData || !backendData[category] || backendData[category].length === 0) return null;
                         return (
-                          <div key={`manage-${category}`} className="space-y-2 md:space-y-3 pt-3 md:pt-4 border-t border-white/5">
-                            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-sky-500">{category.replace(/_/g, ' ')}</span>
-                            <div className="space-y-2">
+                          <div key={`manage-${category}`} className="space-y-2 pt-2 border-t border-white/5">
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">{category.replace(/_/g, ' ')}</span>
+                            <div className="space-y-1.5">
                               {backendData[category].map((node, index) => (
-                                <div key={node.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-black p-3 md:p-4 rounded-xl border border-white/5 group hover:border-sky-500/30 transition-colors gap-2 md:gap-3">
+                                <div key={node.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-black p-3.5 rounded-xl border border-white/5 gap-2">
                                   <div className="truncate w-full sm:max-w-[65%]">
-                                      <p className="text-xs md:text-sm text-slate-200 font-bold truncate">{node.title}</p>
-                                      <p className="text-[9px] md:text-[10px] text-slate-500 truncate font-mono">{node.organization_or_issuer}</p>
+                                      <p className="text-xs text-slate-200 font-medium truncate font-mono">{node.title}</p>
+                                      <p className="text-[10px] text-slate-500 truncate font-mono">{node.organization_or_issuer}</p>
                                   </div>
-                                  <div className="flex items-center gap-1 sm:gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-                                    <button type="button" onClick={(e) => handleMoveNode(category, index, -1, e)} disabled={index === 0} className="text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-white/5 disabled:opacity-30 transition-colors">↑</button>
-                                    <button type="button" onClick={(e) => handleMoveNode(category, index, 1, e)} disabled={index === backendData[category].length - 1} className="text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-white/5 disabled:opacity-30 transition-colors">↓</button>
-                                    
-                                    <button type="button" onClick={(e) => triggerEditNode(category, node, e)} className="flex-1 sm:flex-none text-amber-400 hover:text-white border border-amber-900/50 hover:bg-amber-900/50 px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-colors ml-2">Edit</button>
-                                    <button type="button" onClick={(e) => handleDeleteNode(category, node.id, e)} className="flex-1 sm:flex-none text-red-400 hover:text-white border border-red-900/50 hover:bg-red-900 px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-colors">Remove</button>
+                                  <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                                    <button type="button" onClick={(e) => handleMoveNode(category, index, -1, e)} disabled={index === 0} className="text-slate-400 hover:text-white px-2 py-1 rounded bg-white/5 disabled:opacity-30 text-xs">↑</button>
+                                    <button type="button" onClick={(e) => handleMoveNode(category, index, 1, e)} disabled={index === backendData[category].length - 1} className="text-slate-400 hover:text-white px-2 py-1 rounded bg-white/5 disabled:opacity-30 text-xs">↓</button>
+                                    <button type="button" onClick={(e) => triggerEditNode(category, node, e)} className="text-slate-300 hover:text-white border border-white/10 px-2.5 py-1 rounded text-xs font-mono ml-2">Edit</button>
+                                    <button type="button" onClick={(e) => handleDeleteNode(category, node.id, e)} className="text-red-400 hover:text-white border border-red-900/40 px-2.5 py-1 rounded text-xs font-mono">Del</button>
                                   </div>
                                 </div>
                               ))}
                             </div>
                           </div>
-                        )
+                        );
                       })}
                     </div>
                  </div>
@@ -1379,72 +945,65 @@ function App() {
             )}
           </main>
 
+          {/* CHAT LAUNCHER BUTTON */}
           {!isChatOpen && currentView === 'portfolio' && (
-             <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[100] flex items-center gap-3 md:gap-4 animate-fadeIn">
-                 <div className="flex bg-sky-500/10 border border-sky-500/30 text-sky-400 px-3 py-1.5 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs font-bold tracking-widest backdrop-blur-md shadow-[0_0_15px_rgba(14,165,233,0.3)] animate-pulse shadow-sky-500/20">
-                     Consult Digital Twin →
-                 </div>
-                 <button onClick={() => setIsChatOpen(true)} className="bg-sky-600 hover:bg-sky-500 text-white w-12 h-12 md:w-14 md:h-14 rounded-full shadow-[0_0_20px_rgba(14,165,233,0.5)] flex items-center justify-center transition-transform hover:scale-110 border border-white/20">
-                     <span className="text-xl md:text-2xl">💬</span>
+             <div className="fixed bottom-6 right-6 z-[100] animate-fadeIn">
+                 <button onClick={() => setIsChatOpen(true)} className="bg-white hover:bg-slate-200 text-black px-5 py-3 rounded-full shadow-2xl flex items-center gap-2.5 transition-transform hover:scale-105">
+                     <span className="text-lg">💬</span>
                  </button>
              </div>
           )}
 
-          <div className={`fixed z-[200] transform transition-all duration-300 flex flex-col bg-[#050505]/95 backdrop-blur-3xl 
-              ${isChatOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 pointer-events-none translate-y-10'}
-              inset-0 w-full h-full rounded-none overflow-hidden
-              md:inset-auto md:bottom-10 md:right-10 md:w-[650px] md:h-[450px] md:border md:border-white/10 md:rounded-2xl shadow-[0_10px_80px_rgba(14,165,233,0.2)]`}>
+          {/* 🚀 AI ASSISTANT MODAL (RESPONSIVE: MOBILE STACKED, DESKTOP SIDE-BY-SIDE) 🚀 */}
+          <div className={`fixed z-[200] transform transition-all duration-300 flex flex-col bg-[#050505]
+              ${isChatOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 pointer-events-none translate-y-8'}
+              inset-0 w-full h-[100dvh] rounded-none overflow-hidden
+              md:inset-auto md:bottom-8 md:right-8 md:w-[760px] md:h-[500px] md:border md:border-white/10 md:rounded-3xl shadow-2xl`}>
               
-              <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-sky-500 to-indigo-500 z-50"></div>
-
-              <div className="flex items-center justify-between p-3 md:p-3 border-b border-white/10 bg-[#0a0a0a] flex-shrink-0 h-12 md:h-12 relative z-50">
-                  <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></div>
-                      <span className="text-[10px] md:text-xs font-bold text-white tracking-widest uppercase">Digital Twin Agent</span>
-                  </div>
-                  <div className="flex items-center gap-2">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-white/5 bg-[#0a0a0a] shrink-0 z-50">
+                  <span className="text-sm font-semibold text-white tracking-wide">Assistant</span>
+                  <div className="flex items-center gap-1.5">
                       {['intro', 'answering'].includes(aiState) && (
-                          <button onClick={handleStopResponse} title="Stop ongoing response" className="flex items-center justify-center w-7 h-7 bg-red-950/30 text-red-400 rounded-md transition-colors border border-red-500/30 hover:bg-red-500 hover:text-white hover:border-red-600 shadow-[0_0_10px_rgba(239,68,68,0.2)]">
-                              <span className="text-sm">■</span>
+                          <button onClick={handleStopResponse} title="Stop voice" className="w-7 h-7 flex items-center justify-center text-sm text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors">
+                              ■
                           </button>
                       )}
-                      <button onClick={toggleAudio} className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors border ${!isAudioEnabled ? 'bg-red-500/10 text-red-400 border-red-500/30' : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white'}`}>
+                      <button onClick={toggleAudio} className={`w-7 h-7 flex items-center justify-center text-sm rounded-full transition-colors ${!isAudioEnabled ? 'text-slate-500' : 'text-slate-300 hover:text-white hover:bg-white/10'}`}>
                           {isAudioEnabled ? '🔊' : '🔇'}
                       </button>
-                      <button onClick={() => setIsChatOpen(false)} className="flex items-center justify-center w-7 h-7 bg-white/5 hover:bg-red-500/80 text-white rounded-md transition-colors border border-white/10">
+                      <button onClick={() => setIsChatOpen(false)} title="Close (Esc)" className="w-7 h-7 flex items-center justify-center text-sm text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors">
                           ✕
                       </button>
                   </div>
               </div>
               
-              <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative">
-                  <div className="w-full h-[45vh] min-h-[300px] md:w-[260px] md:h-full bg-black border-b md:border-b-0 md:border-r border-white/10 relative flex-shrink-0">
-                      <video src={idleVideo} autoPlay loop muted playsInline className={`absolute w-full h-full object-cover object-top md:object-center transition-opacity duration-700 ${showIdle ? 'opacity-100' : 'opacity-0'}`} />
-                      <video ref={thinkingRef} src={thinkingVideo} preload="none" loop={false} playsInline onEnded={handleThinkingEnded} className={`absolute w-full h-full object-cover object-top md:object-center transition-opacity duration-500 ${showThinking ? 'opacity-100' : 'opacity-0'}`} />
-                      <video ref={speakingRef} src={speakingVideo} preload="none" loop={aiState === 'answering'} playsInline onEnded={handleSpeakingEnded} className={`absolute w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showSpeaking ? 'opacity-100' : 'opacity-0'}`} />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent pointer-events-none z-10" />
+              <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+                  {/* Fixed Avatar Viewport (Mobile: Top 35%, Desktop: Left Side 280px Vertical) */}
+                  <div className="w-full h-[35dvh] md:w-[280px] md:h-full bg-black border-b md:border-b-0 md:border-r border-white/10 relative shrink-0">
+                      <video src={idleVideo} autoPlay loop muted playsInline className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-300 ${showIdle ? 'opacity-100' : 'opacity-0'}`} />
+                      <video ref={thinkingRef} src={thinkingVideo} preload="none" loop={false} playsInline onEnded={handleThinkingEnded} className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-300 ${showThinking ? 'opacity-100' : 'opacity-0'}`} />
+                      <video ref={speakingRef} src={speakingVideo} preload="none" loop={aiState === 'answering'} playsInline onEnded={handleSpeakingEnded} className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showSpeaking ? 'opacity-100' : 'opacity-0'}`} />
                   </div>
 
-                  <div className="flex-1 flex flex-col h-[calc(100vh-45vh-3rem)] md:h-full bg-[#050505]">
-                      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#050505]" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {/* Scrollable Chat Viewport (Mobile: Bottom 65%, Desktop: Flex Right Side) */}
+                  <div className="flex-1 flex flex-col h-[65dvh] md:h-full bg-[#050505] overflow-hidden">
+                      <div className="flex-1 overflow-y-auto p-5 space-y-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                           {aiState === 'standby' && (
-                              <div className="h-full flex flex-col items-center justify-center text-center space-y-2 md:space-y-3 opacity-60">
-                                  <span className="text-2xl md:text-3xl">✨</span>
-                                  <p className="text-[10px] md:text-[11px] font-medium text-slate-300 leading-relaxed px-4">
-                                      Digital Twin Offline.<br/>
-                                      <span className="text-slate-500 text-[9px] md:text-[10px]">Tap 'Start Session' to initiate AI interaction.</span>
-                                  </p>
+                              <div className="h-full flex flex-col items-center justify-center text-center space-y-2 opacity-40">
+                                  <span className="text-2xl">✨</span>
+                                  <p className="text-sm text-slate-400">Ready to assist.</p>
                               </div>
                           )}
                           {chatHistory.map((chat, idx) => (
-                              <div key={idx} className={`max-w-[90%] rounded-xl p-3 text-[11px] md:text-[12px] leading-relaxed shadow-lg ${chat.role === 'user' ? 'bg-sky-600 text-white self-end rounded-br-sm ml-auto' : 'bg-[#151515] border border-white/5 text-slate-200 self-start rounded-bl-sm mr-auto'}`}>
+                              <div key={idx} className={`max-w-[85%] rounded-2xl p-3.5 text-sm leading-relaxed ${chat.role === 'user' ? 'bg-white text-black self-end ml-auto font-medium' : 'bg-[#111] border border-white/5 text-slate-200 self-start mr-auto'}`}>
                                   {chat.role === 'ai' ? (
                                       <ReactMarkdown
                                           components={{
-                                              p: ({node, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed whitespace-pre-line" {...props} />,
+                                              p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
                                               ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
                                               li: ({node, ...props}) => <li className="text-slate-300" {...props} />,
-                                              strong: ({node, ...props}) => <strong className="text-sky-400 font-bold" {...props} />
+                                              strong: ({node, ...props}) => <strong className="text-white font-semibold" {...props} />
                                           }}
                                       >
                                           {chat.text}
@@ -1455,24 +1014,19 @@ function App() {
                               </div>
                           ))}
                           {aiState === 'thinking' && (
-                              <div className="max-w-[90%] bg-[#0a0a0a] border border-sky-500/20 rounded-xl p-3 text-[10px] mr-auto flex flex-col gap-2 shadow-[0_0_15px_rgba(14,165,233,0.1)]">
-                                 <div className="flex items-center gap-2 text-sky-400 font-mono font-bold uppercase tracking-widest border-b border-sky-500/20 pb-2">
-                                     <span className="w-2 h-2 bg-sky-500 rounded-full animate-pulse"></span> Neural Retrieval Active
-                                 </div>
-                                 <div className="flex flex-col gap-1 text-slate-400 font-mono">
-                                     <span className="animate-[pulse_1.5s_ease-in-out_infinite]">{">"} Vectorizing spatial query...</span>
-                                     <span className="animate-[pulse_1.5s_ease-in-out_0.5s_infinite]">{">"} Executing FAISS semantic search...</span>
-                                     <span className="animate-[pulse_1.5s_ease-in-out_1s_infinite]">{">"} Synthesizing contextual prompt...</span>
-                                 </div>
+                              <div className="max-w-[85%] bg-transparent p-2 text-sm text-slate-500 mr-auto flex items-center gap-2">
+                                 <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-ping"></span>
+                                 <span>Synthesizing...</span>
                               </div>
                           )}
                           <div ref={chatEndRef} />
                       </div>
 
-                      <div className="p-3 md:p-4 border-t border-white/10 bg-[#0a0a0a] flex-shrink-0">
+                      {/* Input Dock */}
+                      <div className="p-4 bg-[#0a0a0a] shrink-0 border-t border-white/5">
                           {aiState === 'standby' ? (
-                              <button onClick={startIntroSequence} className="w-full bg-sky-500 hover:bg-sky-400 text-black font-extrabold uppercase tracking-widest text-[11px] py-3.5 rounded-lg shadow-[0_0_15px_rgba(14,165,233,0.3)] transition-all">
-                                  Start Session
+                              <button onClick={startIntroSequence} className="w-full bg-white text-black font-semibold text-sm py-3 rounded-xl transition-colors">
+                                  Start Conversation
                               </button>
                           ) : (
                               <form onSubmit={triggerAiQuery} className="relative flex items-center">
@@ -1481,15 +1035,15 @@ function App() {
                                       value={userQuery} 
                                       onChange={(e) => setUserQuery(e.target.value)} 
                                       disabled={['intro', 'thinking'].includes(aiState) || isChatLoading} 
-                                      placeholder={isChatLoading ? "Agent is processing..." : "Ask Salik's Twin..."} 
-                                      className="w-full bg-[#111] border border-white/10 focus:border-sky-500/50 rounded-lg pl-4 pr-12 py-3 text-xs text-white outline-none transition-all placeholder:text-slate-600 disabled:opacity-50" 
+                                      placeholder={isChatLoading ? "Thinking..." : "Ask a question..."} 
+                                      className="w-full bg-[#111] border border-white/10 focus:border-white/30 rounded-xl pl-4 pr-12 py-3 text-sm text-white outline-none transition-all placeholder:text-slate-500 disabled:opacity-50" 
                                   />
                                   <button 
                                       type="submit" 
                                       disabled={!userQuery.trim() || ['intro', 'thinking'].includes(aiState) || isChatLoading} 
-                                      className="absolute right-1.5 w-8 h-8 rounded-md bg-sky-500/10 text-sky-400 flex items-center justify-center hover:bg-sky-500 hover:text-black transition-all disabled:opacity-0"
+                                      className="absolute right-2 w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center hover:bg-slate-200 transition-all disabled:opacity-0"
                                   >
-                                      <span className="font-bold text-base">↗</span>
+                                      <span className="font-bold text-sm">↗</span>
                                   </button>
                               </form>
                           )}
