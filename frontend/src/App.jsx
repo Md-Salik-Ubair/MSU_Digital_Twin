@@ -339,14 +339,15 @@ function App() {
   }, [isMuted, aiState]);
 
   const startIntroSequence = () => {
-    stopAllAudio(); 
+    // Immediate state push to avoid UI perceived latency
+    setChatHistory([{ role: 'ai', text: "Hello. I am the AI representation of Md Salik Ubair. I can provide insights into his engineering background, technical projects, and systems architecture experience. How can I assist you today?" }]);
     setAiState('intro');
-    const introText = "Hello. I am the AI representation of Md Salik Ubair. I can provide insights into his engineering background, technical projects, and systems architecture experience. How can I assist you today?";
-    setChatHistory([{ role: 'ai', text: introText }]);
     
     if (!isMuted && speakingRef.current) {
         speakingRef.current.currentTime = 0;
-        speakingRef.current.play().catch(e => console.error("AutoPlay blocked:", e));
+        // Mute hack ensures browser doesn't block immediate playback on first interaction
+        speakingRef.current.muted = true; 
+        speakingRef.current.play().catch(e => console.error("Video Play Blocked:", e));
     } else {
         setTimeout(() => setAiState('idle'), 2500); 
     }
@@ -1075,7 +1076,7 @@ function App() {
                                   className="w-full bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 font-mono text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                               >
                                   <span>🎙️</span>
-                                  <span>Play Voice Introduction</span>
+                                  <span>Start Audio Intro</span>
                               </button>
                           )}
                           <form onSubmit={triggerAiQuery} className="relative flex items-center">
