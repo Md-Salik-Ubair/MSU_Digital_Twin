@@ -966,17 +966,10 @@ function App() {
           {/* CHAT LAUNCHER BUTTON (Premium Glass Orb) */}
           {!isChatOpen && currentView === 'portfolio' && (
              <div className="fixed bottom-6 right-6 z-[100] animate-fadeIn">
-                 <button onClick={() => setIsChatOpen(true)} className="group bg-[#111111]/80 hover:bg-[#1a1a1a]/90 backdrop-blur-xl border border-white/10 w-14 h-14 rounded-full shadow-[0_0_30px_rgba(255,200,100,0.1)] flex items-center justify-center transition-all hover:scale-110">
-                     <svg className="w-6 h-6 group-hover:animate-pulse" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                            <linearGradient id="sparkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#FDE047" />
-                                <stop offset="50%" stopColor="#F97316" />
-                                <stop offset="100%" stopColor="#EF4444" />
-                            </linearGradient>
-                        </defs>
-                        <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#sparkGradient)" />
-                        <path d="M5.5 4.5L6.5 7L9 8L6.5 9L5.5 11.5L4.5 9L2 8L4.5 7L5.5 4.5Z" fill="url(#sparkGradient)" />
+                 <button onClick={() => setIsChatOpen(true)} className="group bg-[#111111]/90 hover:bg-[#1a1a1a] backdrop-blur-2xl border border-white/20 w-14 h-14 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.1)] flex items-center justify-center transition-all hover:scale-110">
+                     <svg className="w-6 h-6 text-white group-hover:animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
+                        <path d="M5.5 4.5L6.5 7L9 8L6.5 9L5.5 11.5L4.5 9L2 8L4.5 7L5.5 4.5Z" />
                      </svg>
                  </button>
              </div>
@@ -1023,10 +1016,10 @@ function App() {
                           {chatHistory.length === 0 && (
                               <div className="h-full flex flex-col items-center justify-center text-center space-y-5 px-2 my-auto">
                                   <div className="space-y-2">
-                                      <div className="w-12 h-12 mx-auto drop-shadow-[0_0_20px_rgba(249,115,22,0.3)] animate-pulse">
-                                          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                              <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#sparkGradient)" />
-                                              <path d="M5.5 4.5L6.5 7L9 8L6.5 9L5.5 11.5L4.5 9L2 8L4.5 7L5.5 4.5Z" fill="url(#sparkGradient)" />
+                                      <div className="w-12 h-12 mx-auto drop-shadow-[0_0_20px_rgba(255,255,255,0.2)] animate-pulse text-white opacity-80">
+                                          <svg viewBox="0 0 24 24" fill="currentColor">
+                                              <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
+                                              <path d="M5.5 4.5L6.5 7L9 8L6.5 9L5.5 11.5L4.5 9L2 8L4.5 7L5.5 4.5Z" />
                                           </svg>
                                       </div>
                                       <h4 className="text-sm font-semibold text-white tracking-wide">Ask Salik's Digital Twin</h4>
