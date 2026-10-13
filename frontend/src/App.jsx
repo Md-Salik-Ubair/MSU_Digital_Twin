@@ -1004,11 +1004,7 @@ function App() {
               <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
                   {/* Fixed Avatar Viewport (Mobile: Top 35%, Desktop: Left Side 280px Vertical) */}
                   <div className="w-full h-[35dvh] md:w-[280px] md:h-full bg-black border-b md:border-b-0 md:border-r border-white/10 relative shrink-0">
-                      {/* Live Tech HUD Badge */}
-                      <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-mono text-slate-300 pointer-events-none">
-                          <span className={`w-1.5 h-1.5 rounded-full ${aiState === 'answering' ? 'bg-emerald-400 animate-pulse' : aiState === 'thinking' ? 'bg-amber-400 animate-ping' : 'bg-sky-400'}`}></span>
-                          <span>{aiState === 'answering' ? 'VOICE SYNC' : aiState === 'thinking' ? 'NEURAL RAG' : 'STANDBY'}</span>
-                      </div>
+                      
                       <video src={idleVideo} autoPlay loop muted playsInline className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-300 ${showIdle ? 'opacity-100' : 'opacity-0'}`} />
                       <video ref={thinkingRef} src={thinkingVideo} preload="none" loop={false} playsInline onEnded={handleThinkingEnded} className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-300 ${showThinking ? 'opacity-100' : 'opacity-0'}`} />
                       <video ref={speakingRef} src={speakingVideo} preload="auto" loop={aiState === 'answering'} playsInline onEnded={handleSpeakingEnded} className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showSpeaking ? 'opacity-100' : 'opacity-0'}`} />
