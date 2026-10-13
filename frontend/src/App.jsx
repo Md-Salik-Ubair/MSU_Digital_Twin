@@ -978,13 +978,9 @@ function App() {
               md:inset-auto md:bottom-8 md:right-8 md:w-[760px] md:h-[500px] md:border md:border-white/10 md:rounded-3xl shadow-2xl`}>
               
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-white/5 bg-[#0a0a0a] shrink-0 z-50">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-[#0a0a0a] shrink-0 z-50">
                   <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-white tracking-wide">Digital Twin</span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                          LIVE
-                      </span>
+                      <span className="text-xs font-mono font-medium text-white tracking-wider">Digital Twin</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                       {['intro', 'answering'].includes(aiState) && (
