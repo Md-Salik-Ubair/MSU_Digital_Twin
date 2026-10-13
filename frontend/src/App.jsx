@@ -357,45 +357,53 @@ function App() {
 
   const playBackendStream = (data) => {
     stopAllAudio(); 
-    const responseText = data.ai_response || "Connection verified.";
+    const responseText = data.ai_response || data.answer || "Connection verified.";
     const audioUrl = data.audio_url;
-    
+
+    // 1. Ek hi baar chat history update hogi (Zero Duplication)
+    setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]);
+    setIsChatLoading(false);
+
+    // 2. Avatar turant speaking mode mein aayega
+    setAiState('answering');
+    if (speakingRef.current) {
+        speakingRef.current.muted = true; // Video muted hone se browser play() kabhi block nahi karega
+        speakingRef.current.currentTime = 0;
+        speakingRef.current.play().catch(e => console.log("Video Play Blocked:", e));
+    }
+
+    // 3. Audio Stream Management
     if (audioUrl) {
-        const fullAudioUrl = `${API_BASE_URL}${audioUrl}?t=${new Date().getTime()}`; 
+        const fullAudioUrl = `${API_BASE_URL}${audioUrl}?t=${Date.now()}`; 
         const newAudio = new Audio(fullAudioUrl);
         audioRef.current = newAudio; 
         newAudio.muted = isMuted; 
-        
-        newAudio.onplaying = () => {
-            if (!audioRef.current) return;
-            setAiState('answering');
-            setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]); 
-            setIsChatLoading(false);
-            if (speakingRef.current) {
-                speakingRef.current.currentTime = 0;
-                speakingRef.current.play().catch(e => console.log("Video Play Blocked:", e));
-            }
-        };
+
         newAudio.onended = () => {
             setAiState('idle');
             if (speakingRef.current) speakingRef.current.pause();
         };
+
         newAudio.onerror = (e) => {
-            console.error("Audio Load Error:", e);
-            setAiState('idle');
-            setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]); 
-            setIsChatLoading(false);
+            console.warn("Audio stream unavailable:", e);
+            setTimeout(() => {
+                setAiState('idle');
+                if (speakingRef.current) speakingRef.current.pause();
+            }, 3000);
         };
+
         newAudio.play().catch(e => { 
-            console.error("Audio AutoPlay blocked:", e); 
-            setAiState('idle'); 
-            setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]); 
-            setIsChatLoading(false);
+            console.warn("Audio AutoPlay blocked by browser:", e); 
+            setTimeout(() => {
+                setAiState('idle');
+                if (speakingRef.current) speakingRef.current.pause();
+            }, 3000);
         });
     } else {
-        setAiState('idle');
-        setChatHistory(prev => [...prev, { role: 'ai', text: responseText }]);
-        setIsChatLoading(false);
+        setTimeout(() => {
+            setAiState('idle');
+            if (speakingRef.current) speakingRef.current.pause();
+        }, 3000);
     }
   };
 
@@ -778,8 +786,14 @@ function App() {
                         )}
                     </div>
 
-                    <div className="pt-16 flex flex-col items-center justify-center text-xs font-mono text-slate-600 gap-4">
-                        <span>© {new Date().getFullYear()} Md Salik Ubair.</span>
+                    <div className="pt-16 border-t border-white/[0.04] flex flex-col sm:flex-row items-center justify-between text-xs font-mono text-slate-500 gap-4">
+                        <span>© {new Date().getFullYear()} Md Salik Ubair. All systems operational.</span>
+                        <button 
+                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                            className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                            Back to top ↑
+                        </button>
                     </div>
                 </footer>
 
@@ -983,7 +997,7 @@ function App() {
                   <div className="w-full h-[35dvh] md:w-[280px] md:h-full bg-black border-b md:border-b-0 md:border-r border-white/10 relative shrink-0">
                       <video src={idleVideo} autoPlay loop muted playsInline className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-300 ${showIdle ? 'opacity-100' : 'opacity-0'}`} />
                       <video ref={thinkingRef} src={thinkingVideo} preload="none" loop={false} playsInline onEnded={handleThinkingEnded} className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-300 ${showThinking ? 'opacity-100' : 'opacity-0'}`} />
-                      <video ref={speakingRef} src={speakingVideo} preload="none" loop={aiState === 'answering'} playsInline onEnded={handleSpeakingEnded} className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showSpeaking ? 'opacity-100' : 'opacity-0'}`} />
+                      <video ref={speakingRef} src={speakingVideo} preload="auto" loop playsInline onEnded={handleSpeakingEnded} className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showSpeaking ? 'opacity-100' : 'opacity-0'}`} />
                   </div>
 
                   {/* Scrollable Chat Viewport (Mobile: Bottom 65%, Desktop: Flex Right Side) */}
