@@ -979,7 +979,13 @@ function App() {
               
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-3 border-b border-white/5 bg-[#0a0a0a] shrink-0 z-50">
-                  <span className="text-sm font-semibold text-white tracking-wide">Assistant</span>
+                  <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-white tracking-wide">Digital Twin</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          LIVE
+                      </span>
+                  </div>
                   <div className="flex items-center gap-1.5">
                       {['intro', 'answering'].includes(aiState) && (
                           <button onClick={handleStopResponse} title="Stop voice" className="w-7 h-7 flex items-center justify-center text-sm text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors">
@@ -998,18 +1004,48 @@ function App() {
               <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
                   {/* Fixed Avatar Viewport (Mobile: Top 35%, Desktop: Left Side 280px Vertical) */}
                   <div className="w-full h-[35dvh] md:w-[280px] md:h-full bg-black border-b md:border-b-0 md:border-r border-white/10 relative shrink-0">
+                      {/* Live Tech HUD Badge */}
+                      <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-mono text-slate-300 pointer-events-none">
+                          <span className={`w-1.5 h-1.5 rounded-full ${aiState === 'answering' ? 'bg-emerald-400 animate-pulse' : aiState === 'thinking' ? 'bg-amber-400 animate-ping' : 'bg-sky-400'}`}></span>
+                          <span>{aiState === 'answering' ? 'VOICE SYNC' : aiState === 'thinking' ? 'NEURAL RAG' : 'STANDBY'}</span>
+                      </div>
                       <video src={idleVideo} autoPlay loop muted playsInline className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-300 ${showIdle ? 'opacity-100' : 'opacity-0'}`} />
                       <video ref={thinkingRef} src={thinkingVideo} preload="none" loop={false} playsInline onEnded={handleThinkingEnded} className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-300 ${showThinking ? 'opacity-100' : 'opacity-0'}`} />
-                      <video ref={speakingRef} src={speakingVideo} preload="auto" loop playsInline onEnded={handleSpeakingEnded} className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showSpeaking ? 'opacity-100' : 'opacity-0'}`} />
+                      <video ref={speakingRef} src={speakingVideo} preload="auto" loop={aiState === 'answering'} playsInline onEnded={handleSpeakingEnded} className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showSpeaking ? 'opacity-100' : 'opacity-0'}`} />
                   </div>
 
                   {/* Scrollable Chat Viewport (Mobile: Bottom 65%, Desktop: Flex Right Side) */}
                   <div className="flex-1 flex flex-col h-[65dvh] md:h-full bg-[#050505] overflow-hidden">
                       <div className="flex-1 overflow-y-auto p-5 space-y-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                          {aiState === 'standby' && (
-                              <div className="h-full flex flex-col items-center justify-center text-center space-y-2 opacity-40">
-                                  <span className="text-2xl">✨</span>
-                                  <p className="text-sm text-slate-400">Ready to assist.</p>
+                          {chatHistory.length === 0 && (
+                              <div className="h-full flex flex-col items-center justify-center text-center space-y-5 px-2 my-auto">
+                                  <div className="space-y-2">
+                                      <div className="text-3xl drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] animate-pulse">
+                                          ✨
+                                      </div>
+                                      <h4 className="text-sm font-semibold text-white tracking-wide">Ask Salik's Digital Twin</h4>
+                                      <p className="text-[11px] text-slate-400 max-w-xs leading-relaxed opacity-80">
+                                          Grounded on verified engineering projects, tech stack, and systems architecture.
+                                      </p>
+                                  </div>
+                                  
+                                  <div className="flex flex-col gap-2 w-full max-w-xs pt-1">
+                                      {[
+                                          "What is your core tech stack?",
+                                          "Explain your RAG architecture",
+                                          "Tell me about your background"
+                                      ].map((promptText, i) => (
+                                          <button
+                                              key={i}
+                                              type="button"
+                                              onClick={() => executeAiQuery(promptText)}
+                                              className="text-left text-xs text-slate-300 hover:text-white bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 rounded-xl px-3.5 py-2.5 transition-all flex items-center justify-between group cursor-pointer"
+                                          >
+                                              <span>{promptText}</span>
+                                              <span className="opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">↗</span>
+                                          </button>
+                                      ))}
+                                  </div>
                               </div>
                           )}
                           {chatHistory.map((chat, idx) => (
@@ -1040,30 +1076,33 @@ function App() {
                       </div>
 
                       {/* Input Dock */}
-                      <div className="p-4 bg-[#0a0a0a] shrink-0 border-t border-white/5">
-                          {aiState === 'standby' ? (
-                              <button onClick={startIntroSequence} className="w-full bg-white text-black font-semibold text-sm py-3 rounded-xl transition-colors">
-                                  Start Conversation
+                      <div className="p-4 bg-[#0a0a0a] shrink-0 border-t border-white/5 space-y-2">
+                          {chatHistory.length === 0 && (
+                              <button 
+                                  onClick={startIntroSequence} 
+                                  className="w-full bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 font-mono text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                              >
+                                  <span>🎙️</span>
+                                  <span>Play Voice Introduction</span>
                               </button>
-                          ) : (
-                              <form onSubmit={triggerAiQuery} className="relative flex items-center">
-                                  <input 
-                                      type="text" 
-                                      value={userQuery} 
-                                      onChange={(e) => setUserQuery(e.target.value)} 
-                                      disabled={['intro', 'thinking'].includes(aiState) || isChatLoading} 
-                                      placeholder={isChatLoading ? "Thinking..." : "Ask a question..."} 
-                                      className="w-full bg-[#111] border border-white/10 focus:border-white/30 rounded-xl pl-4 pr-12 py-3 text-sm text-white outline-none transition-all placeholder:text-slate-500 disabled:opacity-50" 
-                                  />
-                                  <button 
-                                      type="submit" 
-                                      disabled={!userQuery.trim() || ['intro', 'thinking'].includes(aiState) || isChatLoading} 
-                                      className="absolute right-2 w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center hover:bg-slate-200 transition-all disabled:opacity-0"
-                                  >
-                                      <span className="font-bold text-sm">↗</span>
-                                  </button>
-                              </form>
                           )}
+                          <form onSubmit={triggerAiQuery} className="relative flex items-center">
+                              <input 
+                                  type="text" 
+                                  value={userQuery} 
+                                  onChange={(e) => setUserQuery(e.target.value)} 
+                                  disabled={['intro', 'thinking'].includes(aiState) || isChatLoading} 
+                                  placeholder={isChatLoading ? "Thinking..." : "Ask a question..."} 
+                                  className="w-full bg-[#111] border border-white/10 focus:border-white/30 rounded-xl pl-4 pr-12 py-3 text-sm text-white outline-none transition-all placeholder:text-slate-500 disabled:opacity-50" 
+                              />
+                              <button 
+                                  type="submit" 
+                                  disabled={!userQuery.trim() || ['intro', 'thinking'].includes(aiState) || isChatLoading} 
+                                  className="absolute right-2 w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center hover:bg-slate-200 transition-all disabled:opacity-0"
+                              >
+                                  <span className="font-bold text-sm">↗</span>
+                              </button>
+                          </form>
                       </div>
                   </div>
               </div>
