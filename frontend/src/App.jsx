@@ -673,9 +673,12 @@ function App() {
                           </a>
                       )}
                       {backendData?.profile_core?.master_cv_url && (
-                          <a href={backendData.profile_core.master_cv_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-white font-semibold transition-all text-xs md:text-sm group ml-2">
+                          <a href={backendData.profile_core.master_cv_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-white font-semibold transition-all text-xs md:text-sm group ml-2">
                               <span>📄</span> 
-                              <span className="underline underline-offset-4 decoration-white/40 group-hover:decoration-white/100 transition-all">Resume ↗</span>
+                              <span className="underline underline-offset-4 decoration-white/40 group-hover:decoration-white/100 transition-all">Resume</span>
+                              <svg className="w-3 h-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+                              </svg>
                           </a>
                       )}
                     </div>
@@ -786,11 +789,11 @@ function App() {
                         )}
                     </div>
 
-                    <div className="pt-16 border-t border-white/[0.04] flex flex-col sm:flex-row items-center justify-between text-xs font-mono text-slate-500 gap-4">
+                    <div className="pt-16 pb-4 border-t border-white/[0.04] flex flex-col sm:flex-row items-center justify-between text-xs font-mono text-slate-500 gap-4 pr-0 lg:pr-24">
                         <span>© {new Date().getFullYear()} Md Salik Ubair. All systems operational.</span>
                         <button 
                             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                            className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+                            className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer hover:-translate-y-1 transform duration-200"
                         >
                             Back to top ↑
                         </button>
@@ -959,11 +962,11 @@ function App() {
             )}
           </main>
 
-          {/* CHAT LAUNCHER BUTTON */}
+          {/* CHAT LAUNCHER BUTTON (Premium Glass Orb) */}
           {!isChatOpen && currentView === 'portfolio' && (
              <div className="fixed bottom-6 right-6 z-[100] animate-fadeIn">
-                 <button onClick={() => setIsChatOpen(true)} className="bg-white hover:bg-slate-200 text-black px-5 py-3 rounded-full shadow-2xl flex items-center gap-2.5 transition-transform hover:scale-105">
-                     <span className="text-lg">💬</span>
+                 <button onClick={() => setIsChatOpen(true)} className="group bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 text-white w-14 h-14 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.1)] flex items-center justify-center transition-all hover:scale-110">
+                     <span className="text-xl group-hover:animate-pulse">✨</span>
                  </button>
              </div>
           )}
