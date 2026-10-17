@@ -63,8 +63,12 @@ function App() {
   const utteranceRef = useRef(null);
   const chatContainerRef = useRef(null);
   const chatEndRef = useRef(null);
+
   const ttsActiveRef = useRef(false);
   const hasChunkStartedRef = useRef(false);
+  const chunkStartTimestampRef = useRef(0);
+  const silenceTicksRef = useRef(0);
+  const lastCancelTimeRef = useRef(0);
   const ttsWatcherRef = useRef(null);
   const aiStateRef = useRef('standby');
 
@@ -129,7 +133,7 @@ function App() {
     if (!voices || voices.length === 0) return null;
 
     const isFemaleVoice = (v) =>
-      /Zira|Heera|Neerja|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Female|Woman|Girl|Google US English$|Google UK English Female/i.test(
+      /Zira|Heera|Neerja|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Kalpana|Female|Woman|Girl|Google US English$|Google UK English Female/i.test(
         `${v.name} ${v.voiceURI}`
       );
 
@@ -138,36 +142,22 @@ function App() {
     );
 
     return (
+      // 1. Zero-latency local hardware Male voices (Instant start, never buffers)
       englishMaleCandidates.find((v) => v.localService && /Ravi|Prabhat|David|Mark|George|Daniel|James|Richard|Guy|Ryan/i.test(v.name)) ||
-      englishMaleCandidates.find((v) => /Prabhat|Ravi|Google UK English Male|Guy|Ryan|Andrew|Brian|Christopher|David|Mark|George|Male/i.test(v.name)) ||
+      // 2. Any local non-female English voice (0ms network delay)
       englishMaleCandidates.find((v) => v.localService) ||
+      // 3. Explicit Male online voices
+      englishMaleCandidates.find((v) => /Prabhat|Ravi|Google UK English Male|Guy|Ryan|Andrew|Brian|Christopher|David|Mark|George|Male/i.test(v.name)) ||
+      // 4. Fallback non-female English voice
       englishMaleCandidates[0] ||
       null
     );
   }, []);
 
-  // Force speakingRef to play whenever modal is open or mouth movement becomes visible
-  useEffect(() => {
-    if (!speakingRef.current) return;
-    const vid = speakingRef.current;
-
-    if (isChatOpen && aiState !== 'intro') {
-      vid.defaultMuted = true;
-      vid.muted = true;
-      vid.loop = true;
-      requestAnimationFrame(() => {
-        if (speakingRef.current && aiStateRef.current !== 'intro' && speakingRef.current.paused) {
-          speakingRef.current.play().catch(() => {});
-        }
-      });
-    } else if (!isChatOpen) {
-      vid.pause();
-    }
-  }, [isChatOpen, aiState, isMouthMoving]);
-
-  // Starts muted visual mouth movement (Strictly for Answering / TTS mode)
+  // Starts muted visual mouth movement ONLY when voice/audio is actively emitting sound
   const startMutedLipSync = useCallback(() => {
     hasChunkStartedRef.current = true;
+    silenceTicksRef.current = 0;
     setIsMouthMoving(true);
     if (speakingRef.current && aiStateRef.current !== 'intro') {
       const vid = speakingRef.current;
@@ -184,9 +174,12 @@ function App() {
   const stopLipSync = useCallback(() => {
     hasChunkStartedRef.current = false;
     setIsMouthMoving(false);
+    if (speakingRef.current && aiStateRef.current !== 'intro' && !speakingRef.current.paused) {
+      speakingRef.current.pause();
+    }
   }, []);
 
-  // 45ms Hardware Audio-Visual Sync Poller
+  // 45ms Hardware Audio-Visual Sync Poller (Strictly couples mouth movement to actual sound output)
   useEffect(() => {
     if (!isChatOpen) return;
 
@@ -197,8 +190,19 @@ function App() {
         window.speechSynthesis.speaking &&
         !window.speechSynthesis.paused;
 
+      // Fallback if a local SAPI5 voice started speaking without firing onstart after 220ms
+      if (
+        ttsActiveRef.current &&
+        browserSpeaking &&
+        !hasChunkStartedRef.current &&
+        chunkStartTimestampRef.current > 0 &&
+        Date.now() - chunkStartTimestampRef.current > 220
+      ) {
+        hasChunkStartedRef.current = true;
+      }
+
       const ttsSpeakingNow =
-        ttsActiveRef.current && (browserSpeaking || hasChunkStartedRef.current);
+        ttsActiveRef.current && hasChunkStartedRef.current && browserSpeaking;
 
       const backendAudioPlayingNow =
         Boolean(
@@ -221,6 +225,7 @@ function App() {
       const isSoundActive = !isMuted && (ttsSpeakingNow || backendAudioPlayingNow || introVideoPlayingNow);
 
       if (isSoundActive) {
+        silenceTicksRef.current = 0;
         setIsMouthMoving(true);
         if (aiStateRef.current !== 'intro' && speakingRef.current) {
           speakingRef.current.defaultMuted = true;
@@ -230,8 +235,24 @@ function App() {
             speakingRef.current.play().catch(() => {});
           }
         }
-      } else if (!ttsActiveRef.current && aiStateRef.current !== 'intro' && !backendAudioPlayingNow) {
-        setIsMouthMoving(false);
+      } else {
+        // If TTS finished speaking in browser but Chrome dropped the final onend event, auto-reset after ~350ms of silence
+        if (ttsActiveRef.current && hasChunkStartedRef.current && !browserSpeaking && !window.speechSynthesis?.pending) {
+          silenceTicksRef.current += 1;
+          if (silenceTicksRef.current >= 8) {
+            ttsActiveRef.current = false;
+            hasChunkStartedRef.current = false;
+            utteranceRef.current = null;
+            setSpeakingMsgIdx(null);
+            setAiState('idle');
+          }
+        }
+        if (aiStateRef.current !== 'intro') {
+          setIsMouthMoving(false);
+          if (speakingRef.current && !speakingRef.current.paused) {
+            speakingRef.current.pause();
+          }
+        }
       }
     }, 45);
 
@@ -242,6 +263,8 @@ function App() {
   const stopAllAudio = useCallback(() => {
     ttsActiveRef.current = false;
     hasChunkStartedRef.current = false;
+    chunkStartTimestampRef.current = 0;
+    silenceTicksRef.current = 0;
     utteranceRef.current = null;
     setSpeakingMsgIdx(null);
     setIsMouthMoving(false);
@@ -254,8 +277,9 @@ function App() {
     if (
       typeof window !== 'undefined' &&
       'speechSynthesis' in window &&
-      (window.speechSynthesis.speaking || window.speechSynthesis.pending)
+      (window.speechSynthesis.speaking || window.speechSynthesis.pending || window.speechSynthesis.paused)
     ) {
+      lastCancelTimeRef.current = Date.now();
       window.speechSynthesis.cancel();
     }
 
@@ -272,16 +296,11 @@ function App() {
 
     if (speakingRef.current) {
       speakingRef.current.onplaying = null;
+      speakingRef.current.pause();
       speakingRef.current.defaultMuted = true;
       speakingRef.current.muted = true;
       speakingRef.current.loop = true;
-      if (isChatOpen) {
-        if (speakingRef.current.paused) {
-          speakingRef.current.play().catch(() => {});
-        }
-      } else {
-        speakingRef.current.pause();
-      }
+      speakingRef.current.currentTime = 0;
     }
 
     if (thinkingRef.current) {
@@ -289,11 +308,11 @@ function App() {
       thinkingRef.current.muted = true;
       thinkingRef.current.currentTime = 0;
     }
-  }, [isChatOpen]);
+  }, []);
 
   const closeChatModal = useCallback(() => {
     stopAllAudio();
-    if (speakingRef.current) speakingRef.current.pause();
+    aiStateRef.current = 'idle';
     setAiState('idle');
     setIsChatLoading(false);
     setIsChatOpen(false);
@@ -562,11 +581,12 @@ function App() {
       .trim();
   };
 
-  // Race-Condition-Free Browser Speech Engine with Guaranteed Lip-Sync
+  // Race-Condition-Free Browser Speech Engine with Strict Audio-Start Lip-Sync
   const speakWithBrowserTTS = useCallback((text, msgIdx = null, forceUnmute = false) => {
     const currentlyMuted = isMuted && !forceUnmute;
     if (currentlyMuted || typeof window === 'undefined' || !('speechSynthesis' in window)) {
       stopLipSync();
+      aiStateRef.current = 'idle';
       setAiState('idle');
       setSpeakingMsgIdx(null);
       return;
@@ -577,18 +597,15 @@ function App() {
       ttsWatcherRef.current = null;
     }
 
-    // Only call cancel() if speechSynthesis is actually speaking or pending
-    const wasSpeaking = window.speechSynthesis.speaking || window.speechSynthesis.pending;
-    if (wasSpeaking) {
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending || window.speechSynthesis.paused) {
+      lastCancelTimeRef.current = Date.now();
       window.speechSynthesis.cancel();
-    }
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
     }
 
     const cleanText = cleanTextForSpeech(text);
     if (!cleanText) {
       stopLipSync();
+      aiStateRef.current = 'idle';
       setAiState('idle');
       setSpeakingMsgIdx(null);
       return;
@@ -601,7 +618,7 @@ function App() {
     const chunks = [];
     let currentChunk = '';
     for (const s of rawSentences) {
-      if ((currentChunk + ' ' + s).trim().length <= 240) {
+      if ((currentChunk + ' ' + s).trim().length <= 220) {
         currentChunk = (currentChunk + ' ' + s).trim();
       } else {
         if (currentChunk) chunks.push(currentChunk);
@@ -615,7 +632,9 @@ function App() {
 
     ttsActiveRef.current = true;
     hasChunkStartedRef.current = false;
+    silenceTicksRef.current = 0;
     setSpeakingMsgIdx(msgIdx);
+    aiStateRef.current = 'answering';
     setAiState('answering');
 
     let currentIdx = 0;
@@ -623,9 +642,12 @@ function App() {
     const finishSpeech = () => {
       ttsActiveRef.current = false;
       hasChunkStartedRef.current = false;
+      chunkStartTimestampRef.current = 0;
+      silenceTicksRef.current = 0;
       utteranceRef.current = null;
-      setIsMouthMoving(false);
+      stopLipSync();
       setSpeakingMsgIdx(null);
+      aiStateRef.current = 'idle';
       setAiState('idle');
     };
 
@@ -635,8 +657,13 @@ function App() {
         return;
       }
 
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+
       const utterance = new SpeechSynthesisUtterance(chunks[currentIdx]);
       utteranceRef.current = utterance;
+      chunkStartTimestampRef.current = Date.now();
 
       if (maleVoice && !useFallbackVoice) {
         utterance.voice = maleVoice;
@@ -696,21 +723,18 @@ function App() {
       };
 
       window.speechSynthesis.speak(utterance);
-
-      // Fallback trigger for Windows Chrome voices that speak without firing onstart
-      setTimeout(() => {
-        if (ttsActiveRef.current && utteranceRef.current === utterance) {
-          startMutedLipSync();
-        }
-      }, 90);
     };
 
-    if (wasSpeaking) {
+    // Always respect a 75ms cooldown after any cancel() call (including from stopAllAudio)
+    const timeSinceCancel = Date.now() - lastCancelTimeRef.current;
+    const waitMs = timeSinceCancel < 75 ? 75 - timeSinceCancel : 0;
+
+    if (waitMs > 0) {
       ttsWatcherRef.current = setTimeout(() => {
         if (ttsActiveRef.current) {
           speakNextChunk(false);
         }
-      }, 60);
+      }, waitMs);
     } else {
       speakNextChunk(false);
     }
@@ -719,6 +743,7 @@ function App() {
   const handleStopResponse = () => {
     stopAllAudio();
     setIsChatLoading(false);
+    aiStateRef.current = 'idle';
     setAiState('idle');
   };
 
@@ -728,6 +753,7 @@ function App() {
       const willBeMuted = !nextState;
       if (willBeMuted) {
         stopAllAudio();
+        aiStateRef.current = 'idle';
         setAiState('idle');
       } else {
         if (audioRef.current) audioRef.current.muted = false;
@@ -743,16 +769,17 @@ function App() {
     setChatHistory([{ role: 'ai', text: introText }]);
 
     if (isMuted) {
+      aiStateRef.current = 'idle';
       setAiState('idle');
       return;
     }
 
+    aiStateRef.current = 'intro';
     setAiState('intro');
     setSpeakingMsgIdx(0);
 
     if (speakingRef.current) {
       const vid = speakingRef.current;
-      vid.pause();
       vid.loop = false;
       vid.defaultMuted = false;
       vid.muted = false;
@@ -770,7 +797,6 @@ function App() {
           vid.defaultMuted = true;
           vid.muted = true;
           vid.loop = true;
-          vid.play().catch(() => {});
           speakWithBrowserTTS(introText, 0);
         });
       }
@@ -784,12 +810,13 @@ function App() {
       setIsMouthMoving(false);
       if (speakingRef.current) {
         speakingRef.current.onplaying = null;
+        speakingRef.current.pause();
         speakingRef.current.defaultMuted = true;
         speakingRef.current.muted = true;
         speakingRef.current.loop = true;
         speakingRef.current.currentTime = 0;
-        speakingRef.current.play().catch(() => {});
       }
+      aiStateRef.current = 'idle';
       setAiState('idle');
       setSpeakingMsgIdx(null);
     }
@@ -801,6 +828,7 @@ function App() {
       thinkingRef.current.muted = true;
     }
     if (aiStateRef.current === 'thinking') {
+      aiStateRef.current = 'idle_waiting';
       setAiState('idle_waiting');
     }
   };
@@ -815,10 +843,12 @@ function App() {
     setIsChatLoading(false);
 
     if (isMuted) {
+      aiStateRef.current = 'idle';
       setAiState('idle');
       return;
     }
 
+    aiStateRef.current = 'answering';
     setAiState('answering');
     setSpeakingMsgIdx(newMsgIdx);
 
@@ -847,6 +877,7 @@ function App() {
 
       audioEl.onended = () => {
         stopLipSync();
+        aiStateRef.current = 'idle';
         setAiState('idle');
         setSpeakingMsgIdx(null);
       };
@@ -881,6 +912,7 @@ function App() {
     setIsChatLoading(true);
     setChatHistory(prev => [...prev, { role: 'user', text: queryText }]);
     setUserQuery('');
+    aiStateRef.current = 'thinking';
     setAiState('thinking');
 
     if (thinkingRef.current) {
@@ -909,6 +941,7 @@ function App() {
         stopAllAudio();
         const errMsg = 'The backend instance is currently unavailable or experiencing high load. Please try again momentarily.';
         setChatHistory(prev => [...prev, { role: 'ai', text: errMsg }]);
+        aiStateRef.current = 'idle';
         setAiState('idle');
         setIsChatLoading(false);
       });
@@ -1614,8 +1647,6 @@ function App() {
                     ref={speakingRef}
                     src={speakingVideo}
                     preload="auto"
-                    autoPlay
-                    loop
                     muted
                     playsInline
                     disablePictureInPicture
