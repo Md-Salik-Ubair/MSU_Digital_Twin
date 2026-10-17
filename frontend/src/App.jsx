@@ -56,6 +56,7 @@ function App() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
+  const idleRef = useRef(null);
   const speakingRef = useRef(null);
   const thinkingRef = useRef(null);
   const audioRef = useRef(null);
@@ -63,7 +64,9 @@ function App() {
   const chatContainerRef = useRef(null);
   const chatEndRef = useRef(null);
   const ttsActiveRef = useRef(false);
+  const hasChunkStartedRef = useRef(false);
   const ttsWatcherRef = useRef(null);
+  const aiStateRef = useRef('standby');
 
   const [aiState, setAiState] = useState('standby');
   const [isMouthMoving, setIsMouthMoving] = useState(false);
@@ -77,6 +80,10 @@ function App() {
 
   const [viewingNode, setViewingNode] = useState(null);
   const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    aiStateRef.current = aiState;
+  }, [aiState]);
 
   const showToast = (message) => {
     setToast(message);
@@ -115,7 +122,7 @@ function App() {
     }
   }, []);
 
-  // Strict Male Voice Selector (Blocks all Female voices & prioritizes zero-latency Male voices)
+  // Strict Male Voice Selector (Prioritizes zero-latency local hardware male voices, blocks all female voices)
   const selectBestMaleVoice = useCallback(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
     const voices = window.speechSynthesis.getVoices();
@@ -131,50 +138,124 @@ function App() {
     );
 
     return (
-      // 1. Fast local Indian/US/UK explicit male voices (Zero network latency)
-      englishMaleCandidates.find((v) => v.localService && /Ravi|Prabhat|David|Mark|George|Daniel|Alex|James|Richard/i.test(v.name)) ||
-      // 2. Any explicit male voice by name
-      englishMaleCandidates.find((v) => /Prabhat|Ravi|Guy|Ryan|Christopher|Eric|Andrew|Brian|Roger|Steffan|David|Mark|George|Google UK English Male|Male/i.test(v.name)) ||
-      // 3. Local non-female English voice
+      englishMaleCandidates.find((v) => v.localService && /Ravi|Prabhat|David|Mark|George|Daniel|James|Richard|Guy|Ryan/i.test(v.name)) ||
+      englishMaleCandidates.find((v) => /Prabhat|Ravi|Google UK English Male|Guy|Ryan|Andrew|Brian|Christopher|David|Mark|George|Male/i.test(v.name)) ||
       englishMaleCandidates.find((v) => v.localService) ||
-      // 4. Any non-female English voice
       englishMaleCandidates[0] ||
       null
     );
   }, []);
 
+  // Force speakingRef to play whenever modal is open or mouth movement becomes visible
+  useEffect(() => {
+    if (!speakingRef.current) return;
+    const vid = speakingRef.current;
+
+    if (isChatOpen && aiState !== 'intro') {
+      vid.defaultMuted = true;
+      vid.muted = true;
+      vid.loop = true;
+      requestAnimationFrame(() => {
+        if (speakingRef.current && aiStateRef.current !== 'intro' && speakingRef.current.paused) {
+          speakingRef.current.play().catch(() => {});
+        }
+      });
+    } else if (!isChatOpen) {
+      vid.pause();
+    }
+  }, [isChatOpen, aiState, isMouthMoving]);
+
   // Starts muted visual mouth movement (Strictly for Answering / TTS mode)
   const startMutedLipSync = useCallback(() => {
-    if (speakingRef.current) {
-      speakingRef.current.loop = true;
-      speakingRef.current.muted = true;
-      const p = speakingRef.current.play();
-      if (p !== undefined) p.catch(() => {});
-    }
+    hasChunkStartedRef.current = true;
     setIsMouthMoving(true);
+    if (speakingRef.current && aiStateRef.current !== 'intro') {
+      const vid = speakingRef.current;
+      vid.defaultMuted = true;
+      vid.muted = true;
+      vid.loop = true;
+      if (vid.paused) {
+        vid.play().catch(() => {});
+      }
+    }
   }, []);
 
   // Immediately freezes mouth movement & returns visual to idle.mp4
   const stopLipSync = useCallback(() => {
+    hasChunkStartedRef.current = false;
     setIsMouthMoving(false);
-    if (speakingRef.current) {
-      speakingRef.current.pause();
-    }
   }, []);
 
-  // Stops all audio streams, TTS, thinking video, and speaking video immediately
+  // 45ms Hardware Audio-Visual Sync Poller
+  useEffect(() => {
+    if (!isChatOpen) return;
+
+    const syncTimer = setInterval(() => {
+      const browserSpeaking =
+        typeof window !== 'undefined' &&
+        'speechSynthesis' in window &&
+        window.speechSynthesis.speaking &&
+        !window.speechSynthesis.paused;
+
+      const ttsSpeakingNow =
+        ttsActiveRef.current && (browserSpeaking || hasChunkStartedRef.current);
+
+      const backendAudioPlayingNow =
+        Boolean(
+          audioRef.current &&
+          !audioRef.current.paused &&
+          !audioRef.current.ended &&
+          audioRef.current.currentTime > 0 &&
+          audioRef.current.readyState >= 2
+        );
+
+      const introVideoPlayingNow =
+        Boolean(
+          aiStateRef.current === 'intro' &&
+          speakingRef.current &&
+          !speakingRef.current.paused &&
+          !speakingRef.current.ended &&
+          speakingRef.current.currentTime > 0
+        );
+
+      const isSoundActive = !isMuted && (ttsSpeakingNow || backendAudioPlayingNow || introVideoPlayingNow);
+
+      if (isSoundActive) {
+        setIsMouthMoving(true);
+        if (aiStateRef.current !== 'intro' && speakingRef.current) {
+          speakingRef.current.defaultMuted = true;
+          speakingRef.current.muted = true;
+          speakingRef.current.loop = true;
+          if (speakingRef.current.paused) {
+            speakingRef.current.play().catch(() => {});
+          }
+        }
+      } else if (!ttsActiveRef.current && aiStateRef.current !== 'intro' && !backendAudioPlayingNow) {
+        setIsMouthMoving(false);
+      }
+    }, 45);
+
+    return () => clearInterval(syncTimer);
+  }, [isChatOpen, isMuted]);
+
+  // Stops all audio streams, TTS, thinking video, and resets speaking state immediately
   const stopAllAudio = useCallback(() => {
     ttsActiveRef.current = false;
+    hasChunkStartedRef.current = false;
     utteranceRef.current = null;
     setSpeakingMsgIdx(null);
     setIsMouthMoving(false);
 
     if (ttsWatcherRef.current) {
-      clearInterval(ttsWatcherRef.current);
+      clearTimeout(ttsWatcherRef.current);
       ttsWatcherRef.current = null;
     }
 
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    if (
+      typeof window !== 'undefined' &&
+      'speechSynthesis' in window &&
+      (window.speechSynthesis.speaking || window.speechSynthesis.pending)
+    ) {
       window.speechSynthesis.cancel();
     }
 
@@ -191,9 +272,16 @@ function App() {
 
     if (speakingRef.current) {
       speakingRef.current.onplaying = null;
-      speakingRef.current.pause();
+      speakingRef.current.defaultMuted = true;
       speakingRef.current.muted = true;
-      speakingRef.current.currentTime = 0;
+      speakingRef.current.loop = true;
+      if (isChatOpen) {
+        if (speakingRef.current.paused) {
+          speakingRef.current.play().catch(() => {});
+        }
+      } else {
+        speakingRef.current.pause();
+      }
     }
 
     if (thinkingRef.current) {
@@ -201,10 +289,11 @@ function App() {
       thinkingRef.current.muted = true;
       thinkingRef.current.currentTime = 0;
     }
-  }, []);
+  }, [isChatOpen]);
 
   const closeChatModal = useCallback(() => {
     stopAllAudio();
+    if (speakingRef.current) speakingRef.current.pause();
     setAiState('idle');
     setIsChatLoading(false);
     setIsChatOpen(false);
@@ -455,17 +544,25 @@ function App() {
       .replace(/(\*\*|__)(.*?)\1/g, '$2')
       .replace(/(\*|_)(.*?)\1/g, '$2')
       .replace(/^#+\s+/gm, '')
-      .replace(/^[•\-*+]\s+/gm, '. ')
+      .replace(/^[•\-*+]\s+/gm, '')
       .replace(/—/g, ', ')
       .replace(/\bMd\b/gi, 'M D')
       .replace(/\bB\.Tech\b/gi, 'B Tech')
       .replace(/\bAI\/ML\b/gi, 'AI and ML')
+      .replace(/\bFastAPI\b/gi, 'Fast API')
+      .replace(/\bNext\.js\b/gi, 'Next J S')
+      .replace(/\bReact\.js\b/gi, 'React J S')
+      .replace(/\bNode\.js\b/gi, 'Node J S')
+      .replace(/\bpgvector\b/gi, 'P G vector')
+      .replace(/\bNumPy\b/gi, 'Num Pie')
+      .replace(/\bSQL\b/gi, 'S Q L')
       .replace(/\n+/g, '. ')
+      .replace(/(\.\s*){2,}/g, '. ')
       .replace(/\s{2,}/g, ' ')
       .trim();
   };
 
-  // Zero-Latency, Male-Locked Browser Speech Engine with Strict Hardware Sync
+  // Race-Condition-Free Browser Speech Engine with Guaranteed Lip-Sync
   const speakWithBrowserTTS = useCallback((text, msgIdx = null, forceUnmute = false) => {
     const currentlyMuted = isMuted && !forceUnmute;
     if (currentlyMuted || typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -475,10 +572,18 @@ function App() {
       return;
     }
 
-    window.speechSynthesis.cancel();
     if (ttsWatcherRef.current) {
-      clearInterval(ttsWatcherRef.current);
+      clearTimeout(ttsWatcherRef.current);
       ttsWatcherRef.current = null;
+    }
+
+    // Only call cancel() if speechSynthesis is actually speaking or pending
+    const wasSpeaking = window.speechSynthesis.speaking || window.speechSynthesis.pending;
+    if (wasSpeaking) {
+      window.speechSynthesis.cancel();
+    }
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
     }
 
     const cleanText = cleanTextForSpeech(text);
@@ -489,23 +594,27 @@ function App() {
       return;
     }
 
-    // Split into large 220-character natural sentence groups to avoid pause gaps
-    const rawSentences = cleanText.match(/[^.!?]+[.!?]*/g) || [cleanText];
+    const rawSentences = (cleanText.match(/[^.!?]+[.!?]*/g) || [cleanText])
+      .map(s => s.trim())
+      .filter(s => /[a-zA-Z0-9]/.test(s));
+
     const chunks = [];
     let currentChunk = '';
     for (const s of rawSentences) {
-      if ((currentChunk + ' ' + s).trim().length <= 220) {
+      if ((currentChunk + ' ' + s).trim().length <= 240) {
         currentChunk = (currentChunk + ' ' + s).trim();
       } else {
         if (currentChunk) chunks.push(currentChunk);
-        currentChunk = s.trim();
+        currentChunk = s;
       }
     }
     if (currentChunk) chunks.push(currentChunk);
+    if (chunks.length === 0) chunks.push(cleanText);
 
     const maleVoice = selectBestMaleVoice();
 
     ttsActiveRef.current = true;
+    hasChunkStartedRef.current = false;
     setSpeakingMsgIdx(msgIdx);
     setAiState('answering');
 
@@ -513,83 +622,98 @@ function App() {
 
     const finishSpeech = () => {
       ttsActiveRef.current = false;
+      hasChunkStartedRef.current = false;
       utteranceRef.current = null;
-      if (ttsWatcherRef.current) {
-        clearInterval(ttsWatcherRef.current);
-        ttsWatcherRef.current = null;
-      }
-      stopLipSync();
-      if (speakingRef.current) speakingRef.current.currentTime = 0;
+      setIsMouthMoving(false);
       setSpeakingMsgIdx(null);
       setAiState('idle');
     };
 
-    const speakNextChunk = () => {
+    const speakNextChunk = (useFallbackVoice = false) => {
       if (!ttsActiveRef.current || currentIdx >= chunks.length) {
         finishSpeech();
         return;
       }
 
       const utterance = new SpeechSynthesisUtterance(chunks[currentIdx]);
-      utteranceRef.current = utterance; // Prevents Chrome GC from dropping speech mid-sentence
+      utteranceRef.current = utterance;
 
-      if (maleVoice) {
+      if (maleVoice && !useFallbackVoice) {
         utterance.voice = maleVoice;
         utterance.lang = maleVoice.lang;
       } else {
         utterance.lang = 'en-IN';
       }
 
-      utterance.rate = 1.04;
-      utterance.pitch = 0.94;
+      utterance.rate = 1.02;
+      utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
       utterance.onstart = () => {
-        if (!ttsActiveRef.current) return;
+        if (utteranceRef.current !== utterance || !ttsActiveRef.current) return;
+        startMutedLipSync();
+      };
+
+      utterance.onboundary = () => {
+        if (utteranceRef.current !== utterance || !ttsActiveRef.current) return;
         startMutedLipSync();
       };
 
       utterance.onpause = () => {
+        if (utteranceRef.current !== utterance) return;
         stopLipSync();
       };
 
       utterance.onresume = () => {
-        if (ttsActiveRef.current) startMutedLipSync();
+        if (utteranceRef.current !== utterance || !ttsActiveRef.current) return;
+        startMutedLipSync();
       };
 
       utterance.onend = () => {
+        if (utteranceRef.current !== utterance) return;
         if (!ttsActiveRef.current) {
           finishSpeech();
           return;
         }
         currentIdx += 1;
         if (currentIdx < chunks.length) {
-          speakNextChunk();
+          speakNextChunk(useFallbackVoice);
         } else {
           finishSpeech();
         }
       };
 
-      utterance.onerror = () => {
+      utterance.onerror = (e) => {
+        if (utteranceRef.current !== utterance) return;
+        if (e && (e.error === 'canceled' || e.error === 'interrupted')) {
+          return;
+        }
+        if (!useFallbackVoice && ttsActiveRef.current) {
+          speakNextChunk(true);
+          return;
+        }
         finishSpeech();
       };
 
       window.speechSynthesis.speak(utterance);
+
+      // Fallback trigger for Windows Chrome voices that speak without firing onstart
+      setTimeout(() => {
+        if (ttsActiveRef.current && utteranceRef.current === utterance) {
+          startMutedLipSync();
+        }
+      }, 90);
     };
 
-    // Hardware sync watcher: guarantees mouth moves ONLY while speech synthesis is actively speaking
-    ttsWatcherRef.current = setInterval(() => {
-      if (!ttsActiveRef.current) {
-        clearInterval(ttsWatcherRef.current);
-        ttsWatcherRef.current = null;
-        return;
-      }
-      if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-        startMutedLipSync();
-      }
-    }, 120);
-
-    speakNextChunk();
+    if (wasSpeaking) {
+      ttsWatcherRef.current = setTimeout(() => {
+        if (ttsActiveRef.current) {
+          speakNextChunk(false);
+        }
+      }, 60);
+    } else {
+      speakNextChunk(false);
+    }
   }, [isMuted, selectBestMaleVoice, startMutedLipSync, stopLipSync]);
 
   const handleStopResponse = () => {
@@ -612,7 +736,7 @@ function App() {
     });
   };
 
-  // ROLE A: Intro Sequence (Plays speaking.mp4 with its own recorded audio track, loop=false)
+  // ROLE A: Intro Sequence (Plays speaking.mp4 with its own recorded audio track)
   const startIntroSequence = () => {
     stopAllAudio();
     const introText = 'Hello. I am the AI representation of Md Salik Ubair. I can provide insights into his engineering background, technical projects, and systems architecture experience. How can I assist you today?';
@@ -628,7 +752,9 @@ function App() {
 
     if (speakingRef.current) {
       const vid = speakingRef.current;
+      vid.pause();
       vid.loop = false;
+      vid.defaultMuted = false;
       vid.muted = false;
       vid.volume = 1.0;
       vid.currentTime = 0;
@@ -641,6 +767,10 @@ function App() {
       if (playPromise !== undefined) {
         playPromise.catch(() => {
           vid.onplaying = null;
+          vid.defaultMuted = true;
+          vid.muted = true;
+          vid.loop = true;
+          vid.play().catch(() => {});
           speakWithBrowserTTS(introText, 0);
         });
       }
@@ -650,29 +780,32 @@ function App() {
   };
 
   const handleSpeakingEnded = () => {
-    if (aiState === 'intro') {
-      stopLipSync();
+    if (aiStateRef.current === 'intro') {
+      setIsMouthMoving(false);
       if (speakingRef.current) {
+        speakingRef.current.onplaying = null;
+        speakingRef.current.defaultMuted = true;
         speakingRef.current.muted = true;
+        speakingRef.current.loop = true;
         speakingRef.current.currentTime = 0;
+        speakingRef.current.play().catch(() => {});
       }
       setAiState('idle');
       setSpeakingMsgIdx(null);
     }
   };
 
-  // When thinking.mp4 finishes its single play, transition cleanly to idle_waiting (shows idle.mp4)
   const handleThinkingEnded = () => {
     if (thinkingRef.current) {
       thinkingRef.current.pause();
       thinkingRef.current.muted = true;
     }
-    if (aiState === 'thinking') {
+    if (aiStateRef.current === 'thinking') {
       setAiState('idle_waiting');
     }
   };
 
-  // ROLE B: Answering Mode (speaking.mp4 is strictly muted & synced to actual audio playback)
+  // ROLE B: Answering Mode (speaking.mp4 is muted & locked to active voice output)
   const playBackendStream = (data, newMsgIdx) => {
     stopAllAudio();
     const responseText = data.ai_response || data.answer || data.response || 'Connection verified.';
@@ -714,7 +847,6 @@ function App() {
 
       audioEl.onended = () => {
         stopLipSync();
-        if (speakingRef.current) speakingRef.current.currentTime = 0;
         setAiState('idle');
         setSpeakingMsgIdx(null);
       };
@@ -751,7 +883,6 @@ function App() {
     setUserQuery('');
     setAiState('thinking');
 
-    // Play thinking.mp4 with its own audio (if unmuted) once
     if (thinkingRef.current) {
       const tVid = thinkingRef.current;
       tVid.currentTime = 0;
@@ -789,7 +920,7 @@ function App() {
   };
 
   const handleReplayMessage = (text, idx) => {
-    if (speakingMsgIdx === idx && ['answering', 'intro'].includes(aiState)) {
+    if (speakingMsgIdx === idx && (['answering', 'intro'].includes(aiState) || isMouthMoving)) {
       handleStopResponse();
       return;
     }
@@ -800,10 +931,6 @@ function App() {
     speakWithBrowserTTS(text, idx, true);
   };
 
-  // Strict Visual Layering:
-  // 1. thinking.mp4 ONLY when actively playing thinking state
-  // 2. speaking.mp4 ONLY when audio/voice is actively emitting sound (isMouthMoving === true)
-  // 3. idle.mp4 at all other times (zero fake mouth movement!)
   const showThinking = aiState === 'thinking';
   const showSpeaking = isMouthMoving && !showThinking;
   const showIdle = !showThinking && !showSpeaking;
@@ -838,8 +965,7 @@ function App() {
       {/* Toast Notification */}
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-fadeIn">
-          <div className="bg-[#111]/95 border border-white/10 text-white px-5 py-2.5 rounded-full text-xs font-mono tracking-wide backdrop-blur-2xl shadow-2xl flex items-center gap-2.5">
-            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
+          <div className="bg-[#111]/95 border border-white/15 text-white px-5 py-2.5 rounded-full text-xs font-mono tracking-wide backdrop-blur-2xl shadow-2xl flex items-center gap-2">
             {toast}
           </div>
         </div>
@@ -1352,14 +1478,14 @@ function App() {
             )}
           </main>
 
-          {/* EXECUTIVE AI DIGITAL TWIN LAUNCHER (Modern Linear/Vercel-Grade Pill Launcher) */}
+          {/* EXECUTIVE AI DIGITAL TWIN LAUNCHER (Clean Monochrome, Zero Green Dots) */}
           {!isChatOpen && currentView === 'portfolio' && (
             <div className="fixed bottom-6 right-6 z-[100] animate-fadeIn">
               <button
                 type="button"
                 onClick={() => setIsChatOpen(true)}
                 title="Interact with Salik's AI Digital Twin"
-                className="group relative flex items-center gap-3 bg-[#0d0f12]/95 hover:bg-[#14171c] backdrop-blur-2xl border border-white/15 hover:border-white/30 pl-2.5 pr-4 py-2 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.85),0_0_25px_rgba(56,189,248,0.12)] transition-all duration-300 hover:scale-[1.03] outline-none cursor-pointer"
+                className="group relative flex items-center gap-3 bg-[#0d0f12]/95 hover:bg-[#14171c] backdrop-blur-2xl border border-white/15 hover:border-white/30 pl-2.5 pr-4 py-2 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.85)] transition-all duration-300 hover:scale-[1.03] outline-none cursor-pointer"
               >
                 <div className="relative w-9 h-9 rounded-full overflow-hidden border border-white/20 shrink-0 bg-black">
                   <img
@@ -1367,12 +1493,11 @@ function App() {
                     alt="AI Twin"
                     className="w-full h-full object-cover"
                   />
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0d0f12]" />
                 </div>
                 <div className="flex flex-col items-start text-left pr-0.5">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-semibold text-white tracking-tight">AI Digital Twin</span>
-                    <svg className="w-3.5 h-3.5 text-sky-400 group-hover:rotate-12 transition-transform" viewBox="0 0 24 24" fill="currentColor">
+                    <svg className="w-3.5 h-3.5 text-slate-300 group-hover:text-white group-hover:rotate-12 transition-all" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2L14.3 8.7L21 11L14.3 13.3L12 20L9.7 13.3L3 11L9.7 8.7L12 2Z" />
                     </svg>
                   </div>
@@ -1399,13 +1524,15 @@ function App() {
               inset-0 w-full h-[100dvh] rounded-none overflow-hidden
               md:inset-auto md:bottom-6 md:right-6 md:w-[840px] md:h-[550px] md:max-h-[86vh] md:border md:border-white/15 md:rounded-3xl`}
           >
-            {/* Header */}
+            {/* Header (Zero Green Dots) */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.07] bg-[#0c0c0e] shrink-0 z-50">
-              <div className="flex items-center gap-2.5">
-                <span className={`w-2 h-2 rounded-full transition-colors ${isMouthMoving ? 'bg-emerald-400 animate-ping' : aiState === 'thinking' ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`} />
+              <div className="flex items-center gap-2">
+                <svg className="w-3.5 h-3.5 text-white/80" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2L14.3 8.7L21 11L14.3 13.3L12 20L9.7 13.3L3 11L9.7 8.7L12 2Z" />
+                </svg>
                 <span className="text-xs font-mono font-semibold text-white tracking-wider">Digital Twin</span>
-                <span className="text-[10px] font-mono text-slate-500 hidden sm:inline">
-                  {isMouthMoving ? '• Speaking' : aiState === 'thinking' || isChatLoading ? '• Synthesizing' : '• Ready'}
+                <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">
+                  {isMouthMoving ? '— Speaking' : aiState === 'thinking' || isChatLoading ? '— Synthesizing' : ''}
                 </span>
               </div>
 
@@ -1415,7 +1542,7 @@ function App() {
                     type="button"
                     onClick={handleStopResponse}
                     title="Stop speaking"
-                    className="px-2.5 h-7 flex items-center gap-1.5 text-[11px] font-mono text-red-300 hover:text-white bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-full transition-colors outline-none cursor-pointer"
+                    className="px-2.5 h-7 flex items-center gap-1.5 text-[11px] font-mono text-slate-200 hover:text-white bg-white/10 hover:bg-white/15 border border-white/15 rounded-full transition-colors outline-none cursor-pointer"
                   >
                     <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor">
                       <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -1456,34 +1583,45 @@ function App() {
 
             <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
               {/* Framed 3-Layer Avatar Viewport */}
-              <div className="w-full h-[34dvh] md:w-[295px] md:h-full bg-[#08080a] p-3 md:p-4 border-b md:border-b-0 md:border-r border-white/[0.07] shrink-0 flex flex-col">
-                <div className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 bg-black shadow-inner">
-                  {/* Layer 1: Idle Video (Always muted, looping) */}
+              <div className="w-full h-[34dvh] md:w-[295px] md:h-full bg-[#08080a] p-3 md:p-4 border-b md:border-b-0 md:border-r border-white/[0.07] shrink-0 flex flex-col select-none">
+                <div className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 bg-black shadow-inner select-none">
+                  {/* Layer 1: Idle Video */}
                   <video
+                    ref={idleRef}
                     src={idleVideo}
                     autoPlay
                     loop
                     muted
                     playsInline
-                    className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showIdle ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+                    disablePictureInPicture
+                    controlsList="nodownload nofullscreen noremoteplayback"
+                    className={`absolute inset-0 w-full h-full object-cover object-top md:object-center pointer-events-none select-none transition-opacity duration-100 ${showIdle ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
                   />
-                  {/* Layer 2: Thinking Video (Plays once when question asked) */}
+                  {/* Layer 2: Thinking Video */}
                   <video
                     ref={thinkingRef}
                     src={thinkingVideo}
                     preload="auto"
+                    muted
                     playsInline
+                    disablePictureInPicture
+                    controlsList="nodownload nofullscreen noremoteplayback"
                     onEnded={handleThinkingEnded}
-                    className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showThinking ? 'opacity-100 z-20' : 'opacity-0 z-0'}`}
+                    className={`absolute inset-0 w-full h-full object-cover object-top md:object-center pointer-events-none select-none transition-opacity duration-100 ${showThinking ? 'opacity-100 z-20' : 'opacity-0 z-0'}`}
                   />
-                  {/* Layer 3: Speaking Video (Unmuted for intro, Muted loop for answering ONLY when sound is active) */}
+                  {/* Layer 3: Speaking Video */}
                   <video
                     ref={speakingRef}
                     src={speakingVideo}
                     preload="auto"
+                    autoPlay
+                    loop
+                    muted
                     playsInline
+                    disablePictureInPicture
+                    controlsList="nodownload nofullscreen noremoteplayback"
                     onEnded={handleSpeakingEnded}
-                    className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-150 ${showSpeaking ? 'opacity-100 z-30' : 'opacity-0 z-0'}`}
+                    className={`absolute inset-0 w-full h-full object-cover object-top md:object-center pointer-events-none select-none transition-opacity duration-75 ${showSpeaking ? 'opacity-100 z-30' : 'opacity-0 z-0'}`}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15 pointer-events-none z-40" />
                 </div>
@@ -1564,8 +1702,10 @@ function App() {
                               >
                                 {speakingMsgIdx === idx && isMouthMoving ? (
                                   <>
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                                    <span className="text-emerald-300">Stop Reading</span>
+                                    <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                      <rect x="4" y="4" width="16" height="16" rx="2" />
+                                    </svg>
+                                    <span className="text-white font-semibold">Stop Reading</span>
                                   </>
                                 ) : (
                                   <>
@@ -1587,7 +1727,7 @@ function App() {
 
                   {isChatLoading && (
                     <div className="max-w-[85%] bg-transparent p-2 text-slate-400 mr-auto flex items-center gap-2 font-mono text-xs">
-                      <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-ping"></span>
+                      <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-ping"></span>
                       <span>Synthesizing response...</span>
                     </div>
                   )}
@@ -1602,7 +1742,7 @@ function App() {
                       onClick={startIntroSequence}
                       className="w-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 hover:text-white border border-white/10 font-mono text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer outline-none"
                     >
-                      <svg className="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <svg className="w-3.5 h-3.5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
                       </svg>
                       <span>Play Recorded Audio Intro</span>
