@@ -126,32 +126,52 @@ function App() {
     }
   }, []);
 
-  // Strict Male Voice Selector (Prioritizes zero-latency local hardware male voices, blocks all female voices)
+  // Strict Male Voice Failover Pool (100% Male Whitelist in priority order, zero female fallback)
   const selectBestMaleVoice = useCallback(() => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
     const voices = window.speechSynthesis.getVoices();
-    if (!voices || voices.length === 0) return null;
+    if (!voices || voices.length === 0) return [];
 
     const isFemaleVoice = (v) =>
-      /Zira|Heera|Neerja|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Kalpana|Female|Woman|Girl|Google US English$|Google UK English Female/i.test(
+      /Zira|Heera|Neerja|Swara|Kalpana|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Lekha|Nirmala|Cortana|Eva|Female|Woman|Girl|Google US English|Google UK English Female|हिन्दी|Hindi/i.test(
         `${v.name} ${v.voiceURI}`
       );
 
-    const englishMaleCandidates = voices.filter(
-      (v) => /en/i.test(v.lang) && !isFemaleVoice(v)
-    );
+    const englishVoices = voices.filter((v) => /en/i.test(v.lang) && !isFemaleVoice(v));
 
-    return (
-      // 1. Zero-latency local hardware Male voices (Instant start, never buffers)
-      englishMaleCandidates.find((v) => v.localService && /Ravi|Prabhat|David|Mark|George|Daniel|James|Richard|Guy|Ryan/i.test(v.name)) ||
-      // 2. Any local non-female English voice (0ms network delay)
-      englishMaleCandidates.find((v) => v.localService) ||
-      // 3. Explicit Male online voices
-      englishMaleCandidates.find((v) => /Prabhat|Ravi|Google UK English Male|Guy|Ryan|Andrew|Brian|Christopher|David|Mark|George|Male/i.test(v.name)) ||
-      // 4. Fallback non-female English voice
-      englishMaleCandidates[0] ||
-      null
-    );
+    const malePriorityPatterns = [
+      /Microsoft Ravi/i,
+      /Microsoft Prabhat/i,
+      /Microsoft David/i,
+      /Microsoft Mark/i,
+      /Microsoft George/i,
+      /Microsoft Guy/i,
+      /Microsoft Ryan/i,
+      /Microsoft Andrew/i,
+      /Microsoft Brian/i,
+      /Microsoft Christopher/i,
+      /Microsoft Richard/i,
+      /Microsoft James/i,
+      /Google UK English Male/i,
+      /\b(Ravi|Prabhat|David|Mark|George|Guy|Ryan|Andrew|Brian|Christopher|Eric|Steffan|Roger|Daniel|Alex|Oliver|Rishi|Aaron|Fred|Male)\b/i
+    ];
+
+    const pool = [];
+    for (const pattern of malePriorityPatterns) {
+      for (const v of englishVoices) {
+        if (pattern.test(`${v.name} ${v.voiceURI}`) && !pool.includes(v)) {
+          pool.push(v);
+        }
+      }
+    }
+
+    for (const v of englishVoices) {
+      if (v.localService && !pool.includes(v)) {
+        pool.push(v);
+      }
+    }
+
+    return pool;
   }, []);
 
   // Starts muted visual mouth movement ONLY when voice/audio is actively emitting sound
@@ -628,8 +648,6 @@ function App() {
     if (currentChunk) chunks.push(currentChunk);
     if (chunks.length === 0) chunks.push(cleanText);
 
-    const maleVoice = selectBestMaleVoice();
-
     ttsActiveRef.current = true;
     hasChunkStartedRef.current = false;
     silenceTicksRef.current = 0;
@@ -651,7 +669,7 @@ function App() {
       setAiState('idle');
     };
 
-    const speakNextChunk = (useFallbackVoice = false) => {
+    const speakNextChunk = (voiceFailoverIdx = 0) => {
       if (!ttsActiveRef.current || currentIdx >= chunks.length) {
         finishSpeech();
         return;
@@ -661,19 +679,24 @@ function App() {
         window.speechSynthesis.resume();
       }
 
+      const malePool = selectBestMaleVoice();
+      const chosenMaleVoice = malePool[voiceFailoverIdx] || malePool[0] || null;
+
       const utterance = new SpeechSynthesisUtterance(chunks[currentIdx]);
       utteranceRef.current = utterance;
       chunkStartTimestampRef.current = Date.now();
 
-      if (maleVoice && !useFallbackVoice) {
-        utterance.voice = maleVoice;
-        utterance.lang = maleVoice.lang;
+      if (chosenMaleVoice) {
+        utterance.voice = chosenMaleVoice;
+        utterance.lang = chosenMaleVoice.lang;
+        utterance.rate = 1.02;
+        utterance.pitch = 0.96;
       } else {
-        utterance.lang = 'en-IN';
+        utterance.lang = 'en-GB';
+        utterance.rate = 1.0;
+        utterance.pitch = 0.82;
       }
 
-      utterance.rate = 1.02;
-      utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
       utterance.onstart = () => {
@@ -704,7 +727,7 @@ function App() {
         }
         currentIdx += 1;
         if (currentIdx < chunks.length) {
-          speakNextChunk(useFallbackVoice);
+          speakNextChunk(voiceFailoverIdx);
         } else {
           finishSpeech();
         }
@@ -715,8 +738,9 @@ function App() {
         if (e && (e.error === 'canceled' || e.error === 'interrupted')) {
           return;
         }
-        if (!useFallbackVoice && ttsActiveRef.current) {
-          speakNextChunk(true);
+        const currentPool = selectBestMaleVoice();
+        if (ttsActiveRef.current && voiceFailoverIdx + 1 < currentPool.length) {
+          speakNextChunk(voiceFailoverIdx + 1);
           return;
         }
         finishSpeech();
@@ -725,18 +749,17 @@ function App() {
       window.speechSynthesis.speak(utterance);
     };
 
-    // Always respect a 75ms cooldown after any cancel() call (including from stopAllAudio)
     const timeSinceCancel = Date.now() - lastCancelTimeRef.current;
     const waitMs = timeSinceCancel < 75 ? 75 - timeSinceCancel : 0;
 
     if (waitMs > 0) {
       ttsWatcherRef.current = setTimeout(() => {
         if (ttsActiveRef.current) {
-          speakNextChunk(false);
+          speakNextChunk(0);
         }
       }, waitMs);
     } else {
-      speakNextChunk(false);
+      speakNextChunk(0);
     }
   }, [isMuted, selectBestMaleVoice, startMutedLipSync, stopLipSync]);
 
@@ -1511,33 +1534,28 @@ function App() {
             )}
           </main>
 
-          {/* EXECUTIVE AI DIGITAL TWIN LAUNCHER (Clean Monochrome, Zero Green Dots) */}
+          {/* EXECUTIVE AI DIGITAL TWIN LAUNCHER (Ultra-Clean Minimal Pill) */}
           {!isChatOpen && currentView === 'portfolio' && (
             <div className="fixed bottom-6 right-6 z-[100] animate-fadeIn">
               <button
                 type="button"
                 onClick={() => setIsChatOpen(true)}
-                title="Interact with Salik's AI Digital Twin"
-                className="group relative flex items-center gap-3 bg-[#0d0f12]/95 hover:bg-[#14171c] backdrop-blur-2xl border border-white/15 hover:border-white/30 pl-2.5 pr-4 py-2 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.85)] transition-all duration-300 hover:scale-[1.03] outline-none cursor-pointer"
+                title="Open Digital Twin"
+                className="group flex items-center gap-2.5 bg-[#0c0d10]/95 hover:bg-[#14161b] backdrop-blur-2xl border border-white/15 hover:border-white/30 pl-2 pr-4 py-2 rounded-full shadow-[0_12px_35px_rgba(0,0,0,0.9)] transition-all duration-300 hover:scale-[1.03] outline-none cursor-pointer"
               >
-                <div className="relative w-9 h-9 rounded-full overflow-hidden border border-white/20 shrink-0 bg-black">
+                <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/20 shrink-0 bg-black">
                   <img
                     src={backendData?.profile_core?.display_picture_url || avatarImg}
-                    alt="AI Twin"
+                    alt="Digital Twin"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="flex flex-col items-start text-left pr-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-white tracking-tight">AI Digital Twin</span>
-                    <svg className="w-3.5 h-3.5 text-slate-300 group-hover:text-white group-hover:rotate-12 transition-all" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2L14.3 8.7L21 11L14.3 13.3L12 20L9.7 13.3L3 11L9.7 8.7L12 2Z" />
-                    </svg>
-                  </div>
-                  <span className="text-[10px] font-mono text-slate-400 group-hover:text-slate-300 transition-colors">
-                    Ask anything • Voice Active
-                  </span>
-                </div>
+                <span className="text-xs font-mono font-semibold text-slate-200 group-hover:text-white tracking-wider transition-colors">
+                  Digital Twin
+                </span>
+                <svg className="w-3.5 h-3.5 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+                </svg>
               </button>
             </div>
           )}
