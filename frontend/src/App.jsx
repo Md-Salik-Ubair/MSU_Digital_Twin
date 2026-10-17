@@ -8,7 +8,6 @@ import thinkingVideo from './assets/thinking.mp4';
 
 const API_BASE_URL = 'https://salik-portfolio-backend.onrender.com';
 
-// Devicon whitelist taaki kisi bhi AI skill par 404 network error na aaye
 const DEVICON_MAP = {
   'python': { slug: 'python/python-original.svg', invert: false },
   'fastapi': { slug: 'fastapi/fastapi-original.svg', invert: false },
@@ -63,7 +62,7 @@ function App() {
   const chatContainerRef = useRef(null);
   const chatEndRef = useRef(null);
   const ttsActiveRef = useRef(false);
-  const ttsTimeoutRef = useRef(null);
+  const ttsHeartbeatRef = useRef(null);
 
   const [aiState, setAiState] = useState('standby');
   const [userQuery, setUserQuery] = useState('');
@@ -104,7 +103,6 @@ function App() {
 
   const isMuted = !isAudioEnabled;
 
-  // Browser voices pre-load karna taaki pehle response par delay na ho
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.getVoices();
@@ -114,33 +112,50 @@ function App() {
     }
   }, []);
 
-  // Saari audio aur TTS streams ko turant rokne ka function
+  const playAvatarMouth = useCallback(() => {
+    if (speakingRef.current) {
+      speakingRef.current.muted = true;
+      const playPromise = speakingRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {});
+      }
+    }
+  }, []);
+
+  const pauseAvatarMouth = useCallback(() => {
+    if (speakingRef.current) {
+      speakingRef.current.pause();
+    }
+  }, []);
+
   const stopAllAudio = useCallback(() => {
     ttsActiveRef.current = false;
     setSpeakingMsgIdx(null);
-    if (ttsTimeoutRef.current) {
-      clearTimeout(ttsTimeoutRef.current);
-      ttsTimeoutRef.current = null;
+    if (ttsHeartbeatRef.current) {
+      clearInterval(ttsHeartbeatRef.current);
+      ttsHeartbeatRef.current = null;
     }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
     if (audioRef.current) {
+      audioRef.current.onplay = null;
+      audioRef.current.onpause = null;
       audioRef.current.onended = null;
       audioRef.current.onerror = null;
       audioRef.current.pause();
       audioRef.current.removeAttribute('src');
       audioRef.current.load();
     }
+    pauseAvatarMouth();
     if (speakingRef.current) {
-      speakingRef.current.pause();
       speakingRef.current.currentTime = 0;
     }
     if (thinkingRef.current) {
       thinkingRef.current.pause();
       thinkingRef.current.currentTime = 0;
     }
-  }, []);
+  }, [pauseAvatarMouth]);
 
   const closeChatModal = useCallback(() => {
     stopAllAudio();
@@ -160,7 +175,6 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [viewingNode, isChatOpen, closeChatModal]);
 
-  // Naya message aane par smart scroll
   useEffect(() => {
     if (chatContainerRef.current) {
       const container = chatContainerRef.current;
@@ -169,7 +183,7 @@ function App() {
           top: container.scrollHeight,
           behavior: 'smooth'
         });
-      }, 60);
+      }, 50);
     }
   }, [chatHistory.length, isChatLoading]);
 
@@ -385,7 +399,6 @@ function App() {
     };
   };
 
-  // Markdown text ko saaf speech text mein badalne ka function
   const cleanTextForSpeech = (rawText) => {
     if (!rawText) return '';
     return rawText
@@ -406,31 +419,34 @@ function App() {
       .trim();
   };
 
-  // Browser TTS Fallback jo lambe answers ko bina ruke lip-sync ke sath padhta hai
   const speakWithBrowserTTS = useCallback((text, msgIdx = null, forceUnmute = false) => {
     const currentlyMuted = isMuted && !forceUnmute;
     if (currentlyMuted || typeof window === 'undefined' || !('speechSynthesis' in window)) {
       setAiState('idle');
       setSpeakingMsgIdx(null);
-      if (speakingRef.current) speakingRef.current.pause();
+      pauseAvatarMouth();
       return;
     }
 
     window.speechSynthesis.cancel();
+    if (ttsHeartbeatRef.current) {
+      clearInterval(ttsHeartbeatRef.current);
+      ttsHeartbeatRef.current = null;
+    }
+
     const cleanText = cleanTextForSpeech(text);
     if (!cleanText) {
       setAiState('idle');
       setSpeakingMsgIdx(null);
-      if (speakingRef.current) speakingRef.current.pause();
+      pauseAvatarMouth();
       return;
     }
 
-    // Sentences ko chunks mein todna taaki Chrome 15-sec par speech band na kare
     const rawSentences = cleanText.match(/[^.!?]+[.!?]*/g) || [cleanText];
     const chunks = [];
     let currentChunk = '';
     for (const s of rawSentences) {
-      if ((currentChunk + ' ' + s).trim().length <= 170) {
+      if ((currentChunk + ' ' + s).trim().length <= 150) {
         currentChunk = (currentChunk + ' ' + s).trim();
       } else {
         if (currentChunk) chunks.push(currentChunk);
@@ -441,8 +457,8 @@ function App() {
 
     const voices = window.speechSynthesis.getVoices();
     const preferredVoice =
-      voices.find(v => /Prabhat|Ravi|Ryan|Guy|Google UK English Male|David/i.test(v.name) && /en/i.test(v.lang)) ||
-      voices.find(v => /en-IN|en-GB|en-US/i.test(v.lang) && /Male|Natural/i.test(v.name)) ||
+      voices.find(v => /Natural/i.test(v.name) && /en-(IN|US|GB)/i.test(v.lang)) ||
+      voices.find(v => /Prabhat|Ravi|Guy|David|Mark|George/i.test(v.name) && /en/i.test(v.lang)) ||
       voices.find(v => /en-IN|en-GB|en-US/i.test(v.lang)) ||
       voices[0];
 
@@ -450,11 +466,11 @@ function App() {
     setSpeakingMsgIdx(msgIdx);
     setAiState('answering');
 
-    if (speakingRef.current) {
-      speakingRef.current.muted = true;
-      speakingRef.current.currentTime = 0;
-      speakingRef.current.play().catch(() => {});
-    }
+    ttsHeartbeatRef.current = setInterval(() => {
+      if (ttsActiveRef.current && window.speechSynthesis.speaking) {
+        window.speechSynthesis.resume();
+      }
+    }, 4000);
 
     let currentIdx = 0;
 
@@ -463,37 +479,59 @@ function App() {
         ttsActiveRef.current = false;
         setSpeakingMsgIdx(null);
         setAiState('idle');
-        if (speakingRef.current) {
-          speakingRef.current.pause();
-          speakingRef.current.currentTime = 0;
+        pauseAvatarMouth();
+        if (ttsHeartbeatRef.current) {
+          clearInterval(ttsHeartbeatRef.current);
+          ttsHeartbeatRef.current = null;
         }
         return;
       }
 
       const utterance = new SpeechSynthesisUtterance(chunks[currentIdx]);
       if (preferredVoice) utterance.voice = preferredVoice;
-      utterance.rate = 1.02;
+      utterance.rate = 1.0;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
+      utterance.onstart = () => {
+        if (ttsActiveRef.current) {
+          playAvatarMouth();
+        }
+      };
+
+      utterance.onpause = () => {
+        pauseAvatarMouth();
+      };
+
+      utterance.onresume = () => {
+        if (ttsActiveRef.current) {
+          playAvatarMouth();
+        }
+      };
+
       utterance.onend = () => {
+        pauseAvatarMouth();
         if (!ttsActiveRef.current) return;
         currentIdx += 1;
         speakNextChunk();
       };
 
       utterance.onerror = () => {
+        pauseAvatarMouth();
         ttsActiveRef.current = false;
         setSpeakingMsgIdx(null);
         setAiState('idle');
-        if (speakingRef.current) speakingRef.current.pause();
+        if (ttsHeartbeatRef.current) {
+          clearInterval(ttsHeartbeatRef.current);
+          ttsHeartbeatRef.current = null;
+        }
       };
 
       window.speechSynthesis.speak(utterance);
     };
 
     speakNextChunk();
-  }, [isMuted]);
+  }, [isMuted, playAvatarMouth, pauseAvatarMouth]);
 
   const handleStopResponse = () => {
     stopAllAudio();
@@ -532,10 +570,12 @@ function App() {
       speakingRef.current.currentTime = 0;
       speakingRef.current.muted = false;
       speakingRef.current.volume = 1.0;
-      speakingRef.current.play().catch(() => {
-        // Agar browser unmuted video roke toh turant TTS fallback se intro bolna
-        speakWithBrowserTTS(introText, 0);
-      });
+      const playPromise = speakingRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          speakWithBrowserTTS(introText, 0);
+        });
+      }
     } else {
       speakWithBrowserTTS(introText, 0);
     }
@@ -568,12 +608,6 @@ function App() {
     setAiState('answering');
     setSpeakingMsgIdx(newMsgIdx);
 
-    if (speakingRef.current) {
-      speakingRef.current.muted = true;
-      speakingRef.current.currentTime = 0;
-      speakingRef.current.play().catch(() => {});
-    }
-
     if (audioUrl) {
       const fullAudioUrl = audioUrl.startsWith('http')
         ? audioUrl
@@ -585,23 +619,41 @@ function App() {
       audioEl.muted = false;
       audioEl.volume = 1.0;
 
+      audioEl.onplay = () => {
+        playAvatarMouth();
+      };
+
+      audioEl.onpause = () => {
+        pauseAvatarMouth();
+      };
+
+      audioEl.onwaiting = () => {
+        pauseAvatarMouth();
+      };
+
+      audioEl.onplaying = () => {
+        playAvatarMouth();
+      };
+
       audioEl.onended = () => {
+        pauseAvatarMouth();
         setAiState('idle');
         setSpeakingMsgIdx(null);
-        if (speakingRef.current) speakingRef.current.pause();
       };
 
       audioEl.onerror = () => {
-        // Backend audio stream fail hone par turant Browser TTS se response padhna
+        pauseAvatarMouth();
         speakWithBrowserTTS(responseText, newMsgIdx);
       };
 
-      audioEl.play().catch(() => {
-        // AutoPlay block hone par turant Browser TTS se response padhna
-        speakWithBrowserTTS(responseText, newMsgIdx);
-      });
+      const playPromise = audioEl.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          pauseAvatarMouth();
+          speakWithBrowserTTS(responseText, newMsgIdx);
+        });
+      }
     } else {
-      // Jab backend audio_url na bheje toh seedha Browser TTS se response padhna
       speakWithBrowserTTS(responseText, newMsgIdx);
     }
   };
@@ -611,7 +663,6 @@ function App() {
 
     stopAllAudio();
 
-    // User click gesture ke waqt hi audio instance unlock karna
     if (!audioRef.current && typeof Audio !== 'undefined') {
       audioRef.current = new Audio();
     }
@@ -716,7 +767,7 @@ function App() {
         </div>
       ) : (
         <>
-          {/* NAVIGATION BAR (No focus rectangle boxes) */}
+          {/* NAVIGATION BAR */}
           <nav className="fixed w-full border-b border-white/[0.04] bg-[#050505]/80 backdrop-blur-2xl z-50 px-6 md:px-12 py-5 flex items-center justify-between transition-all">
             <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => handleNavClick('portfolio', 'top')}>
               <span className="font-mono text-xs font-semibold tracking-widest text-slate-300 hover:text-white transition-colors">
@@ -853,7 +904,6 @@ function App() {
                       </p>
                     )}
 
-                    {/* CLEAN MONOCHROME SVG CONTACT LINKS (Zero Windows Emojis) */}
                     <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-6 gap-y-3 pt-4">
                       {backendData?.profile_core?.phone_number && (
                         <span className="inline-flex items-center gap-2 text-slate-400 text-xs md:text-sm font-mono cursor-default">
@@ -919,14 +969,13 @@ function App() {
                     </div>
                   </div>
 
-                  {/* CIRCULAR AVATAR */}
                   <div className="relative w-48 h-48 md:w-64 md:h-64 lg:w-80 lg:h-80 shrink-0 mx-auto md:mx-0">
                     <div className="absolute inset-0 bg-gradient-to-tr from-sky-400/10 to-indigo-400/10 rounded-full blur-2xl -z-10"></div>
                     <img src={backendData?.profile_core?.display_picture_url || avatarImg} alt="Profile" className="w-full h-full object-cover rounded-full border border-white/10 shadow-2xl relative z-10" />
                   </div>
                 </div>
 
-                {/* CORE PROFICIENCIES (100% Uniform Icons, Dark-Icon Invert & AI Node SVG Fallback) */}
+                {/* CORE PROFICIENCIES */}
                 <div className="space-y-6 pt-4">
                   <h3 className="text-xs font-mono uppercase tracking-[0.2em] text-slate-500">
                     Core Proficiencies
@@ -1210,23 +1259,25 @@ function App() {
             )}
           </main>
 
-          {/* CHAT LAUNCHER BUTTON */}
+          {/* HIGH-PRECISION CHAT LAUNCHER BUTTON WITH ACTIVE GLOW & STATUS DOT */}
           {!isChatOpen && currentView === 'portfolio' && (
             <div className="fixed bottom-6 right-6 z-[100] animate-fadeIn">
               <button
                 type="button"
                 onClick={() => setIsChatOpen(true)}
-                className="group bg-[#111111]/90 hover:bg-[#1a1a1a] backdrop-blur-2xl border border-white/20 w-14 h-14 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.12)] flex items-center justify-center transition-all hover:scale-110 outline-none cursor-pointer"
+                title="Open AI Digital Twin"
+                className="group relative bg-[#0f1115] hover:bg-[#151921] backdrop-blur-2xl border border-sky-400/30 hover:border-sky-400/60 w-14 h-14 rounded-full shadow-[0_0_25px_rgba(56,189,248,0.22)] flex items-center justify-center transition-all duration-300 hover:scale-110 outline-none cursor-pointer"
               >
-                <svg className="w-6 h-6 text-white group-hover:animate-pulse" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
-                  <path d="M5.5 4.5L6.5 7L9 8L6.5 9L5.5 11.5L4.5 9L2 8L4.5 7L5.5 4.5Z" />
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#050505] animate-pulse" />
+                <svg className="w-6 h-6 text-sky-200 group-hover:text-white group-hover:scale-105 transition-all" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" />
+                  <path d="M19 16L20.2 19.3L23.5 20.5L20.2 21.7L19 25L17.8 21.7L14.5 20.5L17.8 19.3L19 16Z" opacity="0.6" />
                 </svg>
               </button>
             </div>
           )}
 
-          {/* BACKDROP OVERLAY JAB CHAT OPEN HO (Hero photo overlap rokne ke liye) */}
+          {/* BACKDROP OVERLAY */}
           {isChatOpen && (
             <div
               onClick={closeChatModal}
@@ -1286,7 +1337,7 @@ function App() {
                 <button
                   type="button"
                   onClick={closeChatModal}
-                  title="Close (Esc)"
+                  title="Close"
                   className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors outline-none cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1297,7 +1348,7 @@ function App() {
             </div>
 
             <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
-              {/* Framed Avatar Viewport (Clean rounded corners inside modal) */}
+              {/* Framed Avatar Viewport with Smooth Looping Video */}
               <div className="w-full h-[34dvh] md:w-[290px] md:h-full bg-[#080808] p-3 md:p-4 border-b md:border-b-0 md:border-r border-white/[0.07] shrink-0 flex flex-col">
                 <div className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 bg-black shadow-inner">
                   <video
@@ -1322,12 +1373,12 @@ function App() {
                     ref={speakingRef}
                     src={speakingVideo}
                     preload="auto"
-                    loop={aiState === 'answering'}
+                    loop={true}
+                    muted={true}
                     playsInline
                     onEnded={handleSpeakingEnded}
                     className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showSpeaking ? 'opacity-100' : 'opacity-0'}`}
                   />
-                  {/* Subtle vignette border taaki video dark UI ke sath blend ho */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/15 pointer-events-none" />
                 </div>
               </div>
@@ -1460,9 +1511,12 @@ function App() {
                     <button
                       type="submit"
                       disabled={!userQuery.trim() || ['intro', 'thinking'].includes(aiState) || isChatLoading}
-                      className="absolute right-2 w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center hover:bg-slate-200 transition-all disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer outline-none"
+                      title="Send question"
+                      className="absolute right-2 w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center hover:bg-slate-200 transition-all disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer outline-none shadow-sm"
                     >
-                      <span className="font-bold text-sm">↗</span>
+                      <svg className="w-3.5 h-3.5 text-black transform rotate-45 -translate-y-0.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                      </svg>
                     </button>
                   </form>
                 </div>
