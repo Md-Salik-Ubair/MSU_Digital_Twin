@@ -59,12 +59,14 @@ function App() {
   const speakingRef = useRef(null);
   const thinkingRef = useRef(null);
   const audioRef = useRef(null);
+  const utteranceRef = useRef(null);
   const chatContainerRef = useRef(null);
   const chatEndRef = useRef(null);
   const ttsActiveRef = useRef(false);
-  const ttsHeartbeatRef = useRef(null);
+  const ttsWatcherRef = useRef(null);
 
   const [aiState, setAiState] = useState('standby');
+  const [isMouthMoving, setIsMouthMoving] = useState(false);
   const [userQuery, setUserQuery] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
@@ -103,6 +105,7 @@ function App() {
 
   const isMuted = !isAudioEnabled;
 
+  // Pre-warm browser speech voices
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.getVoices();
@@ -112,50 +115,93 @@ function App() {
     }
   }, []);
 
-  const playAvatarMouth = useCallback(() => {
-    if (speakingRef.current) {
-      speakingRef.current.muted = true;
-      const playPromise = speakingRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {});
-      }
-    }
+  // Strict Male Voice Selector (Blocks all Female voices & prioritizes zero-latency Male voices)
+  const selectBestMaleVoice = useCallback(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return null;
+
+    const isFemaleVoice = (v) =>
+      /Zira|Heera|Neerja|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Female|Woman|Girl|Google US English$|Google UK English Female/i.test(
+        `${v.name} ${v.voiceURI}`
+      );
+
+    const englishMaleCandidates = voices.filter(
+      (v) => /en/i.test(v.lang) && !isFemaleVoice(v)
+    );
+
+    return (
+      // 1. Fast local Indian/US/UK explicit male voices (Zero network latency)
+      englishMaleCandidates.find((v) => v.localService && /Ravi|Prabhat|David|Mark|George|Daniel|Alex|James|Richard/i.test(v.name)) ||
+      // 2. Any explicit male voice by name
+      englishMaleCandidates.find((v) => /Prabhat|Ravi|Guy|Ryan|Christopher|Eric|Andrew|Brian|Roger|Steffan|David|Mark|George|Google UK English Male|Male/i.test(v.name)) ||
+      // 3. Local non-female English voice
+      englishMaleCandidates.find((v) => v.localService) ||
+      // 4. Any non-female English voice
+      englishMaleCandidates[0] ||
+      null
+    );
   }, []);
 
-  const pauseAvatarMouth = useCallback(() => {
+  // Starts muted visual mouth movement (Strictly for Answering / TTS mode)
+  const startMutedLipSync = useCallback(() => {
+    if (speakingRef.current) {
+      speakingRef.current.loop = true;
+      speakingRef.current.muted = true;
+      const p = speakingRef.current.play();
+      if (p !== undefined) p.catch(() => {});
+    }
+    setIsMouthMoving(true);
+  }, []);
+
+  // Immediately freezes mouth movement & returns visual to idle.mp4
+  const stopLipSync = useCallback(() => {
+    setIsMouthMoving(false);
     if (speakingRef.current) {
       speakingRef.current.pause();
     }
   }, []);
 
+  // Stops all audio streams, TTS, thinking video, and speaking video immediately
   const stopAllAudio = useCallback(() => {
     ttsActiveRef.current = false;
+    utteranceRef.current = null;
     setSpeakingMsgIdx(null);
-    if (ttsHeartbeatRef.current) {
-      clearInterval(ttsHeartbeatRef.current);
-      ttsHeartbeatRef.current = null;
+    setIsMouthMoving(false);
+
+    if (ttsWatcherRef.current) {
+      clearInterval(ttsWatcherRef.current);
+      ttsWatcherRef.current = null;
     }
+
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+
     if (audioRef.current) {
-      audioRef.current.onplay = null;
+      audioRef.current.onplaying = null;
       audioRef.current.onpause = null;
+      audioRef.current.onwaiting = null;
       audioRef.current.onended = null;
       audioRef.current.onerror = null;
       audioRef.current.pause();
       audioRef.current.removeAttribute('src');
       audioRef.current.load();
     }
-    pauseAvatarMouth();
+
     if (speakingRef.current) {
+      speakingRef.current.onplaying = null;
+      speakingRef.current.pause();
+      speakingRef.current.muted = true;
       speakingRef.current.currentTime = 0;
     }
+
     if (thinkingRef.current) {
       thinkingRef.current.pause();
+      thinkingRef.current.muted = true;
       thinkingRef.current.currentTime = 0;
     }
-  }, [pauseAvatarMouth]);
+  }, []);
 
   const closeChatModal = useCallback(() => {
     stopAllAudio();
@@ -183,7 +229,7 @@ function App() {
           top: container.scrollHeight,
           behavior: 'smooth'
         });
-      }, 50);
+      }, 40);
     }
   }, [chatHistory.length, isChatLoading]);
 
@@ -419,34 +465,36 @@ function App() {
       .trim();
   };
 
+  // Zero-Latency, Male-Locked Browser Speech Engine with Strict Hardware Sync
   const speakWithBrowserTTS = useCallback((text, msgIdx = null, forceUnmute = false) => {
     const currentlyMuted = isMuted && !forceUnmute;
     if (currentlyMuted || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      stopLipSync();
       setAiState('idle');
       setSpeakingMsgIdx(null);
-      pauseAvatarMouth();
       return;
     }
 
     window.speechSynthesis.cancel();
-    if (ttsHeartbeatRef.current) {
-      clearInterval(ttsHeartbeatRef.current);
-      ttsHeartbeatRef.current = null;
+    if (ttsWatcherRef.current) {
+      clearInterval(ttsWatcherRef.current);
+      ttsWatcherRef.current = null;
     }
 
     const cleanText = cleanTextForSpeech(text);
     if (!cleanText) {
+      stopLipSync();
       setAiState('idle');
       setSpeakingMsgIdx(null);
-      pauseAvatarMouth();
       return;
     }
 
+    // Split into large 220-character natural sentence groups to avoid pause gaps
     const rawSentences = cleanText.match(/[^.!?]+[.!?]*/g) || [cleanText];
     const chunks = [];
     let currentChunk = '';
     for (const s of rawSentences) {
-      if ((currentChunk + ' ' + s).trim().length <= 150) {
+      if ((currentChunk + ' ' + s).trim().length <= 220) {
         currentChunk = (currentChunk + ' ' + s).trim();
       } else {
         if (currentChunk) chunks.push(currentChunk);
@@ -455,83 +503,94 @@ function App() {
     }
     if (currentChunk) chunks.push(currentChunk);
 
-    const voices = window.speechSynthesis.getVoices();
-    const preferredVoice =
-      voices.find(v => /Natural/i.test(v.name) && /en-(IN|US|GB)/i.test(v.lang)) ||
-      voices.find(v => /Prabhat|Ravi|Guy|David|Mark|George/i.test(v.name) && /en/i.test(v.lang)) ||
-      voices.find(v => /en-IN|en-GB|en-US/i.test(v.lang)) ||
-      voices[0];
+    const maleVoice = selectBestMaleVoice();
 
     ttsActiveRef.current = true;
     setSpeakingMsgIdx(msgIdx);
     setAiState('answering');
 
-    ttsHeartbeatRef.current = setInterval(() => {
-      if (ttsActiveRef.current && window.speechSynthesis.speaking) {
-        window.speechSynthesis.resume();
-      }
-    }, 4000);
-
     let currentIdx = 0;
+
+    const finishSpeech = () => {
+      ttsActiveRef.current = false;
+      utteranceRef.current = null;
+      if (ttsWatcherRef.current) {
+        clearInterval(ttsWatcherRef.current);
+        ttsWatcherRef.current = null;
+      }
+      stopLipSync();
+      if (speakingRef.current) speakingRef.current.currentTime = 0;
+      setSpeakingMsgIdx(null);
+      setAiState('idle');
+    };
 
     const speakNextChunk = () => {
       if (!ttsActiveRef.current || currentIdx >= chunks.length) {
-        ttsActiveRef.current = false;
-        setSpeakingMsgIdx(null);
-        setAiState('idle');
-        pauseAvatarMouth();
-        if (ttsHeartbeatRef.current) {
-          clearInterval(ttsHeartbeatRef.current);
-          ttsHeartbeatRef.current = null;
-        }
+        finishSpeech();
         return;
       }
 
       const utterance = new SpeechSynthesisUtterance(chunks[currentIdx]);
-      if (preferredVoice) utterance.voice = preferredVoice;
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
+      utteranceRef.current = utterance; // Prevents Chrome GC from dropping speech mid-sentence
+
+      if (maleVoice) {
+        utterance.voice = maleVoice;
+        utterance.lang = maleVoice.lang;
+      } else {
+        utterance.lang = 'en-IN';
+      }
+
+      utterance.rate = 1.04;
+      utterance.pitch = 0.94;
       utterance.volume = 1.0;
 
       utterance.onstart = () => {
-        if (ttsActiveRef.current) {
-          playAvatarMouth();
-        }
+        if (!ttsActiveRef.current) return;
+        startMutedLipSync();
       };
 
       utterance.onpause = () => {
-        pauseAvatarMouth();
+        stopLipSync();
       };
 
       utterance.onresume = () => {
-        if (ttsActiveRef.current) {
-          playAvatarMouth();
-        }
+        if (ttsActiveRef.current) startMutedLipSync();
       };
 
       utterance.onend = () => {
-        pauseAvatarMouth();
-        if (!ttsActiveRef.current) return;
+        if (!ttsActiveRef.current) {
+          finishSpeech();
+          return;
+        }
         currentIdx += 1;
-        speakNextChunk();
+        if (currentIdx < chunks.length) {
+          speakNextChunk();
+        } else {
+          finishSpeech();
+        }
       };
 
       utterance.onerror = () => {
-        pauseAvatarMouth();
-        ttsActiveRef.current = false;
-        setSpeakingMsgIdx(null);
-        setAiState('idle');
-        if (ttsHeartbeatRef.current) {
-          clearInterval(ttsHeartbeatRef.current);
-          ttsHeartbeatRef.current = null;
-        }
+        finishSpeech();
       };
 
       window.speechSynthesis.speak(utterance);
     };
 
+    // Hardware sync watcher: guarantees mouth moves ONLY while speech synthesis is actively speaking
+    ttsWatcherRef.current = setInterval(() => {
+      if (!ttsActiveRef.current) {
+        clearInterval(ttsWatcherRef.current);
+        ttsWatcherRef.current = null;
+        return;
+      }
+      if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+        startMutedLipSync();
+      }
+    }, 120);
+
     speakNextChunk();
-  }, [isMuted, playAvatarMouth, pauseAvatarMouth]);
+  }, [isMuted, selectBestMaleVoice, startMutedLipSync, stopLipSync]);
 
   const handleStopResponse = () => {
     stopAllAudio();
@@ -553,6 +612,7 @@ function App() {
     });
   };
 
+  // ROLE A: Intro Sequence (Plays speaking.mp4 with its own recorded audio track, loop=false)
   const startIntroSequence = () => {
     stopAllAudio();
     const introText = 'Hello. I am the AI representation of Md Salik Ubair. I can provide insights into his engineering background, technical projects, and systems architecture experience. How can I assist you today?';
@@ -567,12 +627,20 @@ function App() {
     setSpeakingMsgIdx(0);
 
     if (speakingRef.current) {
-      speakingRef.current.currentTime = 0;
-      speakingRef.current.muted = false;
-      speakingRef.current.volume = 1.0;
-      const playPromise = speakingRef.current.play();
+      const vid = speakingRef.current;
+      vid.loop = false;
+      vid.muted = false;
+      vid.volume = 1.0;
+      vid.currentTime = 0;
+
+      vid.onplaying = () => {
+        setIsMouthMoving(true);
+      };
+
+      const playPromise = vid.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => {
+          vid.onplaying = null;
           speakWithBrowserTTS(introText, 0);
         });
       }
@@ -583,15 +651,28 @@ function App() {
 
   const handleSpeakingEnded = () => {
     if (aiState === 'intro') {
+      stopLipSync();
+      if (speakingRef.current) {
+        speakingRef.current.muted = true;
+        speakingRef.current.currentTime = 0;
+      }
       setAiState('idle');
       setSpeakingMsgIdx(null);
     }
   };
 
+  // When thinking.mp4 finishes its single play, transition cleanly to idle_waiting (shows idle.mp4)
   const handleThinkingEnded = () => {
-    if (aiState === 'thinking') setAiState('idle_waiting');
+    if (thinkingRef.current) {
+      thinkingRef.current.pause();
+      thinkingRef.current.muted = true;
+    }
+    if (aiState === 'thinking') {
+      setAiState('idle_waiting');
+    }
   };
 
+  // ROLE B: Answering Mode (speaking.mp4 is strictly muted & synced to actual audio playback)
   const playBackendStream = (data, newMsgIdx) => {
     stopAllAudio();
     const responseText = data.ai_response || data.answer || data.response || 'Connection verified.';
@@ -619,37 +700,34 @@ function App() {
       audioEl.muted = false;
       audioEl.volume = 1.0;
 
-      audioEl.onplay = () => {
-        playAvatarMouth();
+      audioEl.onplaying = () => {
+        startMutedLipSync();
       };
 
       audioEl.onpause = () => {
-        pauseAvatarMouth();
+        stopLipSync();
       };
 
       audioEl.onwaiting = () => {
-        pauseAvatarMouth();
-      };
-
-      audioEl.onplaying = () => {
-        playAvatarMouth();
+        stopLipSync();
       };
 
       audioEl.onended = () => {
-        pauseAvatarMouth();
+        stopLipSync();
+        if (speakingRef.current) speakingRef.current.currentTime = 0;
         setAiState('idle');
         setSpeakingMsgIdx(null);
       };
 
       audioEl.onerror = () => {
-        pauseAvatarMouth();
+        stopLipSync();
         speakWithBrowserTTS(responseText, newMsgIdx);
       };
 
       const playPromise = audioEl.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => {
-          pauseAvatarMouth();
+          stopLipSync();
           speakWithBrowserTTS(responseText, newMsgIdx);
         });
       }
@@ -673,10 +751,20 @@ function App() {
     setUserQuery('');
     setAiState('thinking');
 
+    // Play thinking.mp4 with its own audio (if unmuted) once
     if (thinkingRef.current) {
-      thinkingRef.current.muted = true;
-      thinkingRef.current.currentTime = 0;
-      thinkingRef.current.play().catch(() => {});
+      const tVid = thinkingRef.current;
+      tVid.currentTime = 0;
+      tVid.loop = false;
+      tVid.muted = isMuted;
+      tVid.volume = 1.0;
+      const p = tVid.play();
+      if (p !== undefined) {
+        p.catch(() => {
+          tVid.muted = true;
+          tVid.play().catch(() => {});
+        });
+      }
     }
 
     fetch(`${API_BASE_URL}/api/rag/chat`, {
@@ -687,6 +775,7 @@ function App() {
       .then(res => res.json())
       .then(data => playBackendStream(data, nextAiMsgIdx))
       .catch(() => {
+        stopAllAudio();
         const errMsg = 'The backend instance is currently unavailable or experiencing high load. Please try again momentarily.';
         setChatHistory(prev => [...prev, { role: 'ai', text: errMsg }]);
         setAiState('idle');
@@ -711,8 +800,12 @@ function App() {
     speakWithBrowserTTS(text, idx, true);
   };
 
-  const showThinking = ['thinking', 'idle_waiting'].includes(aiState);
-  const showSpeaking = ['intro', 'answering'].includes(aiState) && !isMuted;
+  // Strict Visual Layering:
+  // 1. thinking.mp4 ONLY when actively playing thinking state
+  // 2. speaking.mp4 ONLY when audio/voice is actively emitting sound (isMouthMoving === true)
+  // 3. idle.mp4 at all other times (zero fake mouth movement!)
+  const showThinking = aiState === 'thinking';
+  const showSpeaking = isMouthMoving && !showThinking;
   const showIdle = !showThinking && !showSpeaking;
 
   const navLinks = [
@@ -1259,20 +1352,34 @@ function App() {
             )}
           </main>
 
-          {/* HIGH-PRECISION CHAT LAUNCHER BUTTON WITH ACTIVE GLOW & STATUS DOT */}
+          {/* EXECUTIVE AI DIGITAL TWIN LAUNCHER (Modern Linear/Vercel-Grade Pill Launcher) */}
           {!isChatOpen && currentView === 'portfolio' && (
             <div className="fixed bottom-6 right-6 z-[100] animate-fadeIn">
               <button
                 type="button"
                 onClick={() => setIsChatOpen(true)}
-                title="Open AI Digital Twin"
-                className="group relative bg-[#0f1115] hover:bg-[#151921] backdrop-blur-2xl border border-sky-400/30 hover:border-sky-400/60 w-14 h-14 rounded-full shadow-[0_0_25px_rgba(56,189,248,0.22)] flex items-center justify-center transition-all duration-300 hover:scale-110 outline-none cursor-pointer"
+                title="Interact with Salik's AI Digital Twin"
+                className="group relative flex items-center gap-3 bg-[#0d0f12]/95 hover:bg-[#14171c] backdrop-blur-2xl border border-white/15 hover:border-white/30 pl-2.5 pr-4 py-2 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.85),0_0_25px_rgba(56,189,248,0.12)] transition-all duration-300 hover:scale-[1.03] outline-none cursor-pointer"
               >
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#050505] animate-pulse" />
-                <svg className="w-6 h-6 text-sky-200 group-hover:text-white group-hover:scale-105 transition-all" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" />
-                  <path d="M19 16L20.2 19.3L23.5 20.5L20.2 21.7L19 25L17.8 21.7L14.5 20.5L17.8 19.3L19 16Z" opacity="0.6" />
-                </svg>
+                <div className="relative w-9 h-9 rounded-full overflow-hidden border border-white/20 shrink-0 bg-black">
+                  <img
+                    src={backendData?.profile_core?.display_picture_url || avatarImg}
+                    alt="AI Twin"
+                    className="w-full h-full object-cover"
+                  />
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0d0f12]" />
+                </div>
+                <div className="flex flex-col items-start text-left pr-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-white tracking-tight">AI Digital Twin</span>
+                    <svg className="w-3.5 h-3.5 text-sky-400 group-hover:rotate-12 transition-transform" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2L14.3 8.7L21 11L14.3 13.3L12 20L9.7 13.3L3 11L9.7 8.7L12 2Z" />
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400 group-hover:text-slate-300 transition-colors">
+                    Ask anything • Voice Active
+                  </span>
+                </div>
               </button>
             </div>
           )}
@@ -1281,29 +1388,29 @@ function App() {
           {isChatOpen && (
             <div
               onClick={closeChatModal}
-              className="fixed inset-0 z-[190] bg-black/65 backdrop-blur-sm transition-opacity animate-fadeIn"
+              className="fixed inset-0 z-[190] bg-black/70 backdrop-blur-sm transition-opacity animate-fadeIn"
             />
           )}
 
           {/* AI DIGITAL TWIN MODAL */}
           <div
-            className={`fixed z-[200] transform transition-all duration-300 flex flex-col bg-[#080808]/95 backdrop-blur-3xl
+            className={`fixed z-[200] transform transition-all duration-300 flex flex-col bg-[#08080a]/95 backdrop-blur-3xl
               ${isChatOpen ? 'scale-100 opacity-100 translate-y-0 shadow-[0_25px_90px_rgba(0,0,0,0.95)]' : 'scale-95 opacity-0 pointer-events-none translate-y-8'}
               inset-0 w-full h-[100dvh] rounded-none overflow-hidden
-              md:inset-auto md:bottom-6 md:right-6 md:w-[820px] md:h-[540px] md:max-h-[86vh] md:border md:border-white/15 md:rounded-3xl`}
+              md:inset-auto md:bottom-6 md:right-6 md:w-[840px] md:h-[550px] md:max-h-[86vh] md:border md:border-white/15 md:rounded-3xl`}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.07] bg-[#0c0c0c] shrink-0 z-50">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.07] bg-[#0c0c0e] shrink-0 z-50">
               <div className="flex items-center gap-2.5">
-                <span className={`w-2 h-2 rounded-full transition-colors ${['answering', 'intro'].includes(aiState) ? 'bg-emerald-400 animate-pulse' : aiState === 'thinking' ? 'bg-amber-400 animate-ping' : 'bg-slate-400'}`} />
+                <span className={`w-2 h-2 rounded-full transition-colors ${isMouthMoving ? 'bg-emerald-400 animate-ping' : aiState === 'thinking' ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`} />
                 <span className="text-xs font-mono font-semibold text-white tracking-wider">Digital Twin</span>
                 <span className="text-[10px] font-mono text-slate-500 hidden sm:inline">
-                  {['answering', 'intro'].includes(aiState) ? '• Speaking' : aiState === 'thinking' ? '• Synthesizing' : '• Online'}
+                  {isMouthMoving ? '• Speaking' : aiState === 'thinking' || isChatLoading ? '• Synthesizing' : '• Ready'}
                 </span>
               </div>
 
               <div className="flex items-center gap-1.5">
-                {['intro', 'answering'].includes(aiState) && (
+                {(['intro', 'answering'].includes(aiState) || isMouthMoving) && (
                   <button
                     type="button"
                     onClick={handleStopResponse}
@@ -1348,43 +1455,42 @@ function App() {
             </div>
 
             <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
-              {/* Framed Avatar Viewport with Smooth Looping Video */}
-              <div className="w-full h-[34dvh] md:w-[290px] md:h-full bg-[#080808] p-3 md:p-4 border-b md:border-b-0 md:border-r border-white/[0.07] shrink-0 flex flex-col">
+              {/* Framed 3-Layer Avatar Viewport */}
+              <div className="w-full h-[34dvh] md:w-[295px] md:h-full bg-[#08080a] p-3 md:p-4 border-b md:border-b-0 md:border-r border-white/[0.07] shrink-0 flex flex-col">
                 <div className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 bg-black shadow-inner">
+                  {/* Layer 1: Idle Video (Always muted, looping) */}
                   <video
                     src={idleVideo}
                     autoPlay
                     loop
                     muted
                     playsInline
-                    className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-300 ${showIdle ? 'opacity-100' : 'opacity-0'}`}
+                    className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showIdle ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
                   />
+                  {/* Layer 2: Thinking Video (Plays once when question asked) */}
                   <video
                     ref={thinkingRef}
                     src={thinkingVideo}
                     preload="auto"
-                    muted
-                    loop={false}
                     playsInline
                     onEnded={handleThinkingEnded}
-                    className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-300 ${showThinking ? 'opacity-100' : 'opacity-0'}`}
+                    className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showThinking ? 'opacity-100 z-20' : 'opacity-0 z-0'}`}
                   />
+                  {/* Layer 3: Speaking Video (Unmuted for intro, Muted loop for answering ONLY when sound is active) */}
                   <video
                     ref={speakingRef}
                     src={speakingVideo}
                     preload="auto"
-                    loop={true}
-                    muted={true}
                     playsInline
                     onEnded={handleSpeakingEnded}
-                    className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-200 ${showSpeaking ? 'opacity-100' : 'opacity-0'}`}
+                    className={`absolute inset-0 w-full h-full object-cover object-top md:object-center transition-opacity duration-150 ${showSpeaking ? 'opacity-100 z-30' : 'opacity-0 z-0'}`}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/15 pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15 pointer-events-none z-40" />
                 </div>
               </div>
 
               {/* Scrollable Chat Viewport */}
-              <div className="flex-1 flex flex-col min-h-0 bg-[#050505] overflow-hidden">
+              <div className="flex-1 flex flex-col min-h-0 bg-[#050507] overflow-hidden">
                 <div
                   ref={chatContainerRef}
                   className="flex-1 overflow-y-auto px-5 py-5 space-y-4"
@@ -1428,56 +1534,60 @@ function App() {
                   {chatHistory.map((chat, idx) => (
                     <div
                       key={idx}
-                      className={`max-w-[88%] rounded-2xl p-3.5 text-sm leading-relaxed ${
-                        chat.role === 'user'
-                          ? 'bg-white text-black self-end ml-auto font-medium shadow-md'
-                          : 'bg-[#111111] border border-white/[0.07] text-slate-200 self-start mr-auto'
-                      }`}
+                      className={`flex flex-col ${chat.role === 'user' ? 'items-end' : 'items-start'}`}
                     >
-                      {chat.role === 'ai' ? (
-                        <div>
-                          <ReactMarkdown
-                            components={{
-                              p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
-                              ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
-                              li: ({ node, ...props }) => <li className="text-slate-300" {...props} />,
-                              strong: ({ node, ...props }) => <strong className="text-white font-semibold" {...props} />
-                            }}
-                          >
-                            {chat.text}
-                          </ReactMarkdown>
-
-                          <div className="mt-2.5 pt-2 border-t border-white/[0.05] flex items-center justify-end">
-                            <button
-                              type="button"
-                              onClick={() => handleReplayMessage(chat.text, idx)}
-                              className="inline-flex items-center gap-1.5 text-[11px] font-mono text-slate-400 hover:text-white transition-colors outline-none cursor-pointer"
+                      <div
+                        className={`w-fit max-w-[85%] rounded-2xl text-sm leading-relaxed ${
+                          chat.role === 'user'
+                            ? 'bg-white text-black px-4 py-2.5 font-medium shadow-md rounded-br-sm'
+                            : 'bg-[#111114] border border-white/[0.08] text-slate-200 p-4 rounded-bl-sm'
+                        }`}
+                      >
+                        {chat.role === 'ai' ? (
+                          <div>
+                            <ReactMarkdown
+                              components={{
+                                p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                                li: ({ node, ...props }) => <li className="text-slate-300" {...props} />,
+                                strong: ({ node, ...props }) => <strong className="text-white font-semibold" {...props} />
+                              }}
                             >
-                              {speakingMsgIdx === idx && ['answering', 'intro'].includes(aiState) ? (
-                                <>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                                  <span className="text-emerald-300">Stop Reading</span>
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
-                                  </svg>
-                                  <span>Read Aloud</span>
-                                </>
-                              )}
-                            </button>
+                              {chat.text}
+                            </ReactMarkdown>
+
+                            <div className="mt-2.5 pt-2 border-t border-white/[0.06] flex items-center justify-end">
+                              <button
+                                type="button"
+                                onClick={() => handleReplayMessage(chat.text, idx)}
+                                className="inline-flex items-center gap-1.5 text-[11px] font-mono text-slate-400 hover:text-white transition-colors outline-none cursor-pointer"
+                              >
+                                {speakingMsgIdx === idx && isMouthMoving ? (
+                                  <>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                                    <span className="text-emerald-300">Stop Reading</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+                                    </svg>
+                                    <span>Read Aloud</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        chat.text
-                      )}
+                        ) : (
+                          chat.text
+                        )}
+                      </div>
                     </div>
                   ))}
 
-                  {aiState === 'thinking' && (
-                    <div className="max-w-[85%] bg-transparent p-2 text-sm text-slate-400 mr-auto flex items-center gap-2 font-mono text-xs">
-                      <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-ping"></span>
+                  {isChatLoading && (
+                    <div className="max-w-[85%] bg-transparent p-2 text-slate-400 mr-auto flex items-center gap-2 font-mono text-xs">
+                      <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-ping"></span>
                       <span>Synthesizing response...</span>
                     </div>
                   )}
@@ -1485,17 +1595,17 @@ function App() {
                 </div>
 
                 {/* Input Dock */}
-                <div className="p-4 bg-[#0a0a0a] shrink-0 border-t border-white/[0.07] space-y-2.5">
+                <div className="p-4 bg-[#0a0a0d] shrink-0 border-t border-white/[0.07] space-y-2.5">
                   {chatHistory.length === 0 && (
                     <button
                       type="button"
                       onClick={startIntroSequence}
-                      className="w-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border border-white/10 font-mono text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer outline-none"
+                      className="w-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 hover:text-white border border-white/10 font-mono text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer outline-none"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <svg className="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
                       </svg>
-                      <span>Start Audio Intro</span>
+                      <span>Play Recorded Audio Intro</span>
                     </button>
                   )}
 
@@ -1505,17 +1615,21 @@ function App() {
                       value={userQuery}
                       onChange={(e) => setUserQuery(e.target.value)}
                       disabled={['intro', 'thinking'].includes(aiState) || isChatLoading}
-                      placeholder={isChatLoading ? 'Synthesizing...' : 'Ask a question...'}
-                      className="w-full bg-[#121212] border border-white/10 focus:border-white/30 rounded-xl pl-4 pr-12 py-3 text-sm text-white outline-none transition-all placeholder:text-slate-500 disabled:opacity-50"
+                      placeholder={isChatLoading ? 'Synthesizing...' : 'Ask a technical question...'}
+                      className="w-full bg-[#121216] border border-white/10 focus:border-white/30 rounded-xl pl-4 pr-12 py-3 text-sm text-white outline-none transition-all placeholder:text-slate-500 disabled:opacity-50"
                     />
                     <button
                       type="submit"
                       disabled={!userQuery.trim() || ['intro', 'thinking'].includes(aiState) || isChatLoading}
                       title="Send question"
-                      className="absolute right-2 w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center hover:bg-slate-200 transition-all disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer outline-none shadow-sm"
+                      className={`absolute right-2 w-8 h-8 rounded-lg flex items-center justify-center transition-all outline-none ${
+                        userQuery.trim() && !['intro', 'thinking'].includes(aiState) && !isChatLoading
+                          ? 'bg-white text-black hover:bg-slate-200 cursor-pointer shadow-sm'
+                          : 'bg-white/5 text-slate-500 cursor-not-allowed'
+                      }`}
                     >
-                      <svg className="w-3.5 h-3.5 text-black transform rotate-45 -translate-y-0.5" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
                       </svg>
                     </button>
                   </form>
