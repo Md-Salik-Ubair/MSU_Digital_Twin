@@ -126,48 +126,37 @@ function App() {
     }
   }, []);
 
-  // Strict Male Voice Failover Pool (100% Male Whitelist in priority order, zero female fallback)
+  // 100% Verified Male-Only Voice Pool (Prioritizes Natural Neural Male Speakers, Zero Female Possible)
   const selectBestMaleVoice = useCallback(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
     const voices = window.speechSynthesis.getVoices();
     if (!voices || voices.length === 0) return [];
 
-    const isFemaleVoice = (v) =>
-      /Zira|Heera|Neerja|Swara|Kalpana|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Lekha|Nirmala|Cortana|Eva|Female|Woman|Girl|Google US English|Google UK English Female|हिन्दी|Hindi/i.test(
+    // Hard block every known female voice & generic default female URI
+    const isFemaleOrAmbiguous = (v) =>
+      /Zira|Heera|Neerja|Swara|Kalpana|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Lekha|Nirmala|Cortana|Eva|Ava|Emma|Salli|Joanna|Kendra|kimberly|Ivy|Amy|Emma|Olivia| May|Female|Woman|Girl|Google US English|Google UK English Female|हिन्दी|Hindi/i.test(
         `${v.name} ${v.voiceURI}`
       );
 
-    const englishVoices = voices.filter((v) => /en/i.test(v.lang) && !isFemaleVoice(v));
+    const candidateVoices = voices.filter((v) => /en/i.test(v.lang) && !isFemaleOrAmbiguous(v));
 
-    const malePriorityPatterns = [
-      /Microsoft Ravi/i,
-      /Microsoft Prabhat/i,
-      /Microsoft David/i,
-      /Microsoft Mark/i,
-      /Microsoft George/i,
-      /Microsoft Guy/i,
-      /Microsoft Ryan/i,
-      /Microsoft Andrew/i,
-      /Microsoft Brian/i,
-      /Microsoft Christopher/i,
-      /Microsoft Richard/i,
-      /Microsoft James/i,
+    // Ordered from most human-like natural male narrator to crisp local hardware male voices
+    const strictMalePatterns = [
+      /Microsoft (Andrew|Brian|Guy|Prabhat|Ryan|Christopher|Eric|Steffan|Roger).*Natural/i,
       /Google UK English Male/i,
-      /\b(Ravi|Prabhat|David|Mark|George|Guy|Ryan|Andrew|Brian|Christopher|Eric|Steffan|Roger|Daniel|Alex|Oliver|Rishi|Aaron|Fred|Male)\b/i
+      /Microsoft Prabhat/i,
+      /Microsoft Ravi/i,
+      /Microsoft (Andrew|Brian|Guy|Ryan|Christopher|Eric|Steffan)/i,
+      /Microsoft (George|Mark|David|Richard|James)/i,
+      /\b(Prabhat|Ravi|Guy|Ryan|Andrew|Brian|Christopher|Eric|Steffan|Roger|George|Mark|David|Richard|James|Daniel|Alex|Oliver|Rishi|Aaron|Fred)\b/i
     ];
 
     const pool = [];
-    for (const pattern of malePriorityPatterns) {
-      for (const v of englishVoices) {
+    for (const pattern of strictMalePatterns) {
+      for (const v of candidateVoices) {
         if (pattern.test(`${v.name} ${v.voiceURI}`) && !pool.includes(v)) {
           pool.push(v);
         }
-      }
-    }
-
-    for (const v of englishVoices) {
-      if (v.localService && !pool.includes(v)) {
-        pool.push(v);
       }
     }
 
@@ -573,6 +562,7 @@ function App() {
     };
   };
 
+  // Converts raw markdown/bullets into natural, conversational human speaker phrasing
   const cleanTextForSpeech = (rawText) => {
     if (!rawText) return '';
     return rawText
@@ -580,28 +570,47 @@ function App() {
       .replace(/`([^`]+)`/g, '$1')
       .replace(/!\[.*?\]\(.*?\)/g, '')
       .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+      // Turn markdown headings into a natural spoken topic pause
+      .replace(/^#+\s*(.+)$/gm, '$1. ')
+      // Turn bold bullet labels like "• **Python** – core for AI" into smooth spoken clauses
+      .replace(/^[•\-*+]\s*\*\*([^*]+)\*\*\s*[:–—-]\s*/gm, '$1, ')
+      .replace(/^[•\-*+]\s*/gm, '')
       .replace(/(\*\*|__)(.*?)\1/g, '$2')
       .replace(/(\*|_)(.*?)\1/g, '$2')
-      .replace(/^#+\s+/gm, '')
-      .replace(/^[•\-*+]\s+/gm, '')
-      .replace(/—/g, ', ')
+      // Speak slashes naturally ("JavaScript / TypeScript" -> "JavaScript and TypeScript")
+      .replace(/\bAI\/ML\b/gi, 'A I and Machine Learning')
+      .replace(/\bCI\/CD\b/gi, 'C I C D')
+      .replace(/\bUI\/UX\b/gi, 'U I and U X')
+      .replace(/\s+\/\s+/g, ' and ')
+      // Natural pause on dashes and colons
+      .replace(/\s*[—–]\s*/g, ', ')
+      .replace(/:\s+/g, ', ')
+      // Pronounce engineering terms & names like a real human engineer
       .replace(/\bMd\b/gi, 'M D')
+      .replace(/\bUbair\b/gi, 'Ubair')
       .replace(/\bB\.Tech\b/gi, 'B Tech')
-      .replace(/\bAI\/ML\b/gi, 'AI and ML')
-      .replace(/\bFastAPI\b/gi, 'Fast API')
+      .replace(/\bLLMs\b/g, 'L L Ms')
+      .replace(/\bLLM\b/g, 'L L M')
+      .replace(/\bRAG\b/g, 'RAG')
+      .replace(/\bAPIs\b/g, 'A P Is')
+      .replace(/\bAPI\b/g, 'A P I')
+      .replace(/\bSSE\b/g, 'S S E')
+      .replace(/\bSQL\b/gi, 'S Q L')
+      .replace(/\bFastAPI\b/gi, 'Fast A P I')
       .replace(/\bNext\.js\b/gi, 'Next J S')
       .replace(/\bReact\.js\b/gi, 'React J S')
       .replace(/\bNode\.js\b/gi, 'Node J S')
-      .replace(/\bpgvector\b/gi, 'P G vector')
+      .replace(/\bpgvector\b/gi, 'P G Vector')
+      .replace(/\bChromaDB\b/gi, 'Chroma D B')
+      .replace(/\bMongoDB\b/gi, 'Mongo D B')
       .replace(/\bNumPy\b/gi, 'Num Pie')
-      .replace(/\bSQL\b/gi, 'S Q L')
       .replace(/\n+/g, '. ')
-      .replace(/(\.\s*){2,}/g, '. ')
+      .replace(/([.,!?])\s*\1+/g, '$1 ')
       .replace(/\s{2,}/g, ' ')
       .trim();
   };
 
-  // Race-Condition-Free Browser Speech Engine with Strict Audio-Start Lip-Sync
+  // Human-Cadence Male Speech Engine (Never falls back to OS default female voice)
   const speakWithBrowserTTS = useCallback((text, msgIdx = null, forceUnmute = false) => {
     const currentlyMuted = isMuted && !forceUnmute;
     if (currentlyMuted || typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -631,6 +640,7 @@ function App() {
       return;
     }
 
+    // Group sentences into natural human breath phrases (~165 chars)
     const rawSentences = (cleanText.match(/[^.!?]+[.!?]*/g) || [cleanText])
       .map(s => s.trim())
       .filter(s => /[a-zA-Z0-9]/.test(s));
@@ -638,7 +648,7 @@ function App() {
     const chunks = [];
     let currentChunk = '';
     for (const s of rawSentences) {
-      if ((currentChunk + ' ' + s).trim().length <= 220) {
+      if ((currentChunk + ' ' + s).trim().length <= 165) {
         currentChunk = (currentChunk + ' ' + s).trim();
       } else {
         if (currentChunk) chunks.push(currentChunk);
@@ -656,6 +666,7 @@ function App() {
     setAiState('answering');
 
     let currentIdx = 0;
+    let voiceRetryCount = 0;
 
     const finishSpeech = () => {
       ttsActiveRef.current = false;
@@ -675,28 +686,40 @@ function App() {
         return;
       }
 
+      const malePool = selectBestMaleVoice();
+
+      // Wait for browser voices to load if pool is momentarily empty on first load (prevents OS female default!)
+      if (malePool.length === 0) {
+        if (voiceRetryCount < 12) {
+          voiceRetryCount += 1;
+          window.speechSynthesis.getVoices();
+          ttsWatcherRef.current = setTimeout(() => {
+            if (ttsActiveRef.current) speakNextChunk(voiceFailoverIdx);
+          }, 60);
+          return;
+        }
+        // If no male voice exists on the device at all, stay silent rather than playing a female voice
+        finishSpeech();
+        return;
+      }
+
       if (window.speechSynthesis.paused) {
         window.speechSynthesis.resume();
       }
 
-      const malePool = selectBestMaleVoice();
-      const chosenMaleVoice = malePool[voiceFailoverIdx] || malePool[0] || null;
+      const chosenMaleVoice = malePool[voiceFailoverIdx] || malePool[0];
+      const isNaturalNeural = /Natural|Google UK English Male/i.test(chosenMaleVoice.name);
 
       const utterance = new SpeechSynthesisUtterance(chunks[currentIdx]);
       utteranceRef.current = utterance;
       chunkStartTimestampRef.current = Date.now();
 
-      if (chosenMaleVoice) {
-        utterance.voice = chosenMaleVoice;
-        utterance.lang = chosenMaleVoice.lang;
-        utterance.rate = 1.02;
-        utterance.pitch = 0.96;
-      } else {
-        utterance.lang = 'en-GB';
-        utterance.rate = 1.0;
-        utterance.pitch = 0.82;
-      }
-
+      // Strictly lock the verified male voice object
+      utterance.voice = chosenMaleVoice;
+      utterance.lang = chosenMaleVoice.lang || 'en-US';
+      // Composed, natural human presenter cadence
+      utterance.rate = isNaturalNeural ? 1.0 : 0.97;
+      utterance.pitch = isNaturalNeural ? 0.98 : 0.94;
       utterance.volume = 1.0;
 
       utterance.onstart = () => {
@@ -727,7 +750,10 @@ function App() {
         }
         currentIdx += 1;
         if (currentIdx < chunks.length) {
-          speakNextChunk(voiceFailoverIdx);
+          // 90ms natural human breath pause between sentence groups
+          ttsWatcherRef.current = setTimeout(() => {
+            if (ttsActiveRef.current) speakNextChunk(voiceFailoverIdx);
+          }, 90);
         } else {
           finishSpeech();
         }
@@ -750,7 +776,7 @@ function App() {
     };
 
     const timeSinceCancel = Date.now() - lastCancelTimeRef.current;
-    const waitMs = timeSinceCancel < 75 ? 75 - timeSinceCancel : 0;
+    const waitMs = timeSinceCancel < 80 ? 80 - timeSinceCancel : 0;
 
     if (waitMs > 0) {
       ttsWatcherRef.current = setTimeout(() => {
@@ -1250,40 +1276,181 @@ function App() {
                   </div>
                 </div>
 
-                {/* CORE PROFICIENCIES */}
-                <div className="space-y-6 pt-4">
-                  <h3 className="text-xs font-mono uppercase tracking-[0.2em] text-slate-500">
-                    Core Proficiencies
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-2.5 md:gap-3">
-                    {backendData?.profile_core?.skills_list ? (
-                      backendData.profile_core.skills_list.split(',').filter(s => s.trim() !== '').map((skill, index) => {
-                        const cleanSkill = skill.trim();
-                        const iconInfo = getSkillIconInfo(cleanSkill);
+                {/* CORE PROFICIENCIES — DESIGN A: ROOT-TO-BRANCH SYSTEM ARCHITECTURE TREE */}
+                <div className="pt-4">
+                  {(() => {
+                    const rawSkills = backendData?.profile_core?.skills_list
+                      ? backendData.profile_core.skills_list.split(',').map(s => s.trim()).filter(Boolean)
+                      : [];
+
+                    const branches = [
+                      {
+                        id: '01',
+                        code: 'ARCH_RAG',
+                        title: 'AI & RAG Architecture',
+                        subtitle: 'Retrieval, Vector Search & Orchestration',
+                        match: /rag|retrieval|orchestrat|semantic|embedding|vector|rerank|cohere|jina|tavily|langchain|llamaindex|agent|graph|knowledge/i,
+                        items: []
+                      },
+                      {
+                        id: '02',
+                        code: 'LLM_INF',
+                        title: 'LLM & Inference Engines',
+                        subtitle: 'Foundation Models, High-Speed Inference & Vision',
+                        match: /groq|gemini|mistral|openrouter|cerebras|ollama|llama|whisper|openai|claude|anthropic|machine learning|computer vision|deep learning|nlp|tensorflow|pytorch|scikit/i,
+                        items: []
+                      },
+                      {
+                        id: '03',
+                        code: 'SYS_DATA',
+                        title: 'Backend, Data & Vector Stores',
+                        subtitle: 'Async APIs, Memory Pooling & Distributed Storage',
+                        match: /python|fastapi|flask|django|node|chromadb|chroma|supabase|pgvector|postgres|sql|mysql|redis|mongo|sse|streaming|numpy|pandas|^c$|c\+\+|java|docker|linux|aws/i,
+                        items: []
+                      },
+                      {
+                        id: '04',
+                        code: 'UI_TOOL',
+                        title: 'Frontend & Systems Tooling',
+                        subtitle: 'Reactive Interfaces, Type Safety & Version Control',
+                        match: /next|react|typescript|javascript|tailwind|html|css|git|github|vite|vercel|figma/i,
+                        items: []
+                      }
+                    ];
+
+                    rawSkills.forEach((skill) => {
+                      const target =
+                        branches.find(b => b.match.test(skill)) ||
+                        branches[2];
+                      target.items.push(skill);
+                    });
+
+                    const activeBranches = branches.filter(b => b.items.length > 0);
+
+                    const renderBranchFallbackIcon = (branchId) => {
+                      if (branchId === '01') {
                         return (
-                          <div
-                            key={index}
-                            className="inline-flex items-center gap-2.5 bg-white/[0.02] border border-white/[0.07] text-slate-300 text-xs md:text-sm px-4 py-2 rounded-full font-mono cursor-default transition-all hover:bg-white/[0.05] hover:border-white/15 hover:text-white"
-                          >
-                            {iconInfo ? (
-                              <img
-                                src={iconInfo.url}
-                                alt=""
-                                className={`w-4 h-4 object-contain shrink-0 ${iconInfo.invert ? 'invert brightness-200' : ''}`}
-                              />
-                            ) : (
-                              <svg className="w-3.5 h-3.5 text-sky-400/80 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2L14.2 9.8L22 12L14.2 14.2L12 22L9.8 14.2L2 12L9.8 9.8L12 2Z" />
-                              </svg>
-                            )}
-                            <span>{cleanSkill}</span>
-                          </div>
+                          <svg className="w-3.5 h-3.5 text-sky-400/90 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <circle cx="6" cy="6" r="2.5" />
+                            <circle cx="18" cy="6" r="2.5" />
+                            <circle cx="12" cy="18" r="2.5" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7.5l3 8.5m5-8.5l-3 8.5M8.5 6h7" />
+                          </svg>
                         );
-                      })
-                    ) : (
-                      <span className="text-xs text-slate-500 font-mono">Loading data...</span>
-                    )}
-                  </div>
+                      }
+                      if (branchId === '02') {
+                        return (
+                          <svg className="w-3.5 h-3.5 text-indigo-400/90 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <rect x="7" y="7" width="10" height="10" rx="2" />
+                            <path strokeLinecap="round" d="M9 3v4m6-4v4M9 17v4m6-4v4M3 9h4m-4 6h4m10-6h4m-4 6h4" />
+                          </svg>
+                        );
+                      }
+                      if (branchId === '03') {
+                        return (
+                          <svg className="w-3.5 h-3.5 text-emerald-400/90 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <ellipse cx="12" cy="6" rx="7" ry="3" />
+                            <path strokeLinecap="round" d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6" />
+                            <path strokeLinecap="round" d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6" />
+                          </svg>
+                        );
+                      }
+                      return (
+                        <svg className="w-3.5 h-3.5 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+                        </svg>
+                      );
+                    };
+
+                    return (
+                      <div>
+                        {/* Root Node Header */}
+                        <div className="flex items-center justify-between border-b border-white/[0.06] pb-4 mb-8">
+                          <div className="flex items-center gap-3">
+                            <div className="w-5 h-5 rounded-md bg-white/[0.05] border border-white/15 flex items-center justify-center">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                            </div>
+                            <h3 className="text-xs font-mono uppercase tracking-[0.22em] text-slate-300 font-semibold">
+                              Core Proficiencies
+                            </h3>
+                            <span className="text-[11px] font-mono text-slate-600 hidden sm:inline">
+                              // root_architecture_tree
+                            </span>
+                          </div>
+                          <span className="text-[11px] font-mono text-slate-500">
+                            {rawSkills.length} active modules
+                          </span>
+                        </div>
+
+                        {rawSkills.length === 0 ? (
+                          <span className="text-xs text-slate-500 font-mono">Loading architecture tree...</span>
+                        ) : (
+                          /* Main Root Spine & Branches */
+                          <div className="relative pl-5 md:pl-8">
+                            {/* Vertical Root Spine Line */}
+                            <div className="absolute left-[9px] md:left-[15px] top-2 bottom-6 w-[1.5px] bg-gradient-to-b from-white/25 via-white/10 to-white/[0.03]" />
+
+                            <div className="space-y-8 md:space-y-10">
+                              {activeBranches.map((branch) => (
+                                <div key={branch.id} className="relative group">
+                                  {/* Horizontal Branch Connector Elbow + Junction Node */}
+                                  <div className="absolute -left-5 md:-left-8 top-4 flex items-center">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-[#050505] border-2 border-white/40 group-hover:border-white group-hover:scale-110 transition-all z-10" />
+                                    <div className="w-3.5 md:w-6 h-[1.5px] bg-white/15 group-hover:bg-white/35 transition-colors" />
+                                  </div>
+
+                                  {/* Branch Container */}
+                                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 items-start bg-white/[0.01] hover:bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.1] rounded-2xl p-5 md:p-6 transition-all duration-300">
+                                    
+                                    {/* Left Branch Metadata */}
+                                    <div className="lg:col-span-4 space-y-1.5 lg:border-r lg:border-white/[0.05] lg:pr-6">
+                                      <div className="flex items-center gap-2 font-mono text-[10px] tracking-widest uppercase text-slate-500">
+                                        <span className="text-white/70 font-semibold">BRANCH {branch.id}</span>
+                                        <span>•</span>
+                                        <span>{branch.code}</span>
+                                      </div>
+                                      <h4 className="text-sm md:text-base font-bold text-white tracking-tight">
+                                        {branch.title}
+                                      </h4>
+                                      <p className="text-xs text-slate-500 leading-relaxed">
+                                        {branch.subtitle}
+                                      </p>
+                                    </div>
+
+                                    {/* Right Leaf Nodes (Skills) */}
+                                    <div className="lg:col-span-8 flex flex-wrap items-center gap-2 md:gap-2.5">
+                                      {branch.items.map((skill, sIdx) => {
+                                        const iconInfo = getSkillIconInfo(skill);
+                                        const displayLabel = skill.toLowerCase() === 'c' ? 'C Language' : skill;
+                                        return (
+                                          <div
+                                            key={sIdx}
+                                            className="inline-flex items-center gap-2 bg-[#0b0b0e] hover:bg-white/[0.06] border border-white/[0.07] hover:border-white/20 text-slate-200 hover:text-white text-xs px-3.5 py-2 rounded-xl font-mono transition-all duration-200 cursor-default shadow-sm"
+                                          >
+                                            {iconInfo ? (
+                                              <img
+                                                src={iconInfo.url}
+                                                alt=""
+                                                className={`w-3.5 h-3.5 object-contain shrink-0 ${iconInfo.invert ? 'invert brightness-200' : ''}`}
+                                              />
+                                            ) : (
+                                              renderBranchFallbackIcon(branch.id)
+                                            )}
+                                            <span>{displayLabel}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* CONTENT SECTIONS */}
@@ -1534,28 +1701,29 @@ function App() {
             )}
           </main>
 
-          {/* EXECUTIVE AI DIGITAL TWIN LAUNCHER (Ultra-Clean Minimal Pill) */}
+          {/* EXECUTIVE AI DIGITAL TWIN LAUNCHER (Voice Equalizer Pill — No Duplicate Photo) */}
           {!isChatOpen && currentView === 'portfolio' && (
             <div className="fixed bottom-6 right-6 z-[100] animate-fadeIn">
               <button
                 type="button"
                 onClick={() => setIsChatOpen(true)}
-                title="Open Digital Twin"
-                className="group flex items-center gap-2.5 bg-[#0c0d10]/95 hover:bg-[#14161b] backdrop-blur-2xl border border-white/15 hover:border-white/30 pl-2 pr-4 py-2 rounded-full shadow-[0_12px_35px_rgba(0,0,0,0.9)] transition-all duration-300 hover:scale-[1.03] outline-none cursor-pointer"
+                title="Interact with Salik's AI Digital Twin"
+                className="group flex items-center gap-3 bg-[#0a0b0e]/95 hover:bg-[#12141a] backdrop-blur-2xl border border-white/15 hover:border-white/30 pl-3.5 pr-4 py-2.5 rounded-full shadow-[0_14px_40px_rgba(0,0,0,0.9)] transition-all duration-300 hover:scale-[1.03] outline-none cursor-pointer"
               >
-                <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/20 shrink-0 bg-black">
-                  <img
-                    src={backendData?.profile_core?.display_picture_url || avatarImg}
-                    alt="Digital Twin"
-                    className="w-full h-full object-cover"
-                  />
+                {/* Crisp Voice Waveform Icon */}
+                <div className="w-7 h-7 rounded-full bg-white/[0.06] group-hover:bg-white text-white group-hover:text-black flex items-center justify-center transition-colors shrink-0">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+                    <path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" />
+                  </svg>
                 </div>
-                <span className="text-xs font-mono font-semibold text-slate-200 group-hover:text-white tracking-wider transition-colors">
-                  Digital Twin
-                </span>
-                <svg className="w-3.5 h-3.5 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
-                </svg>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-semibold text-white tracking-wider">
+                    Digital Twin
+                  </span>
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-slate-400 bg-white/[0.05] border border-white/10 px-2 py-0.5 rounded-full">
+                    AI Voice
+                  </span>
+                </div>
               </button>
             </div>
           )}
