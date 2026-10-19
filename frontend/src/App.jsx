@@ -126,33 +126,48 @@ function App() {
     }
   }, []);
 
-  // 100% Verified Male-Only Voice Pool (Prioritizes Natural Neural Male Speakers, Zero Female Possible)
+  // 100% Verified Male-Only Voice Pool (Prioritizes Instant Local Hardware Male Voices First)
   const selectBestMaleVoice = useCallback(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
     const voices = window.speechSynthesis.getVoices();
     if (!voices || voices.length === 0) return [];
 
-    // Hard block every known female voice & generic default female URI
-    const isFemaleOrAmbiguous = (v) =>
-      /Zira|Heera|Neerja|Swara|Kalpana|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Lekha|Nirmala|Cortana|Eva|Ava|Emma|Salli|Joanna|Kendra|kimberly|Ivy|Amy|Emma|Olivia| May|Female|Woman|Girl|Google US English|Google UK English Female|हिन्दी|Hindi/i.test(
+    const isFemaleVoice = (v) =>
+      /Zira|Heera|Neerja|Swara|Kalpana|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Lekha|Nirmala|Cortana|Eva|Ava|Emma|Salli|Joanna|Kendra|kimberly|Ivy|Amy|Olivia|May|Female|Woman|Girl|Google US English|Google UK English Female|हिन्दी|Hindi/i.test(
         `${v.name} ${v.voiceURI}`
       );
 
-    const candidateVoices = voices.filter((v) => /en/i.test(v.lang) && !isFemaleOrAmbiguous(v));
-
-    // Ordered from most human-like natural male narrator to crisp local hardware male voices
-    const strictMalePatterns = [
-      /Microsoft (Andrew|Brian|Guy|Prabhat|Ryan|Christopher|Eric|Steffan|Roger).*Natural/i,
-      /Google UK English Male/i,
-      /Microsoft Prabhat/i,
-      /Microsoft Ravi/i,
-      /Microsoft (Andrew|Brian|Guy|Ryan|Christopher|Eric|Steffan)/i,
-      /Microsoft (George|Mark|David|Richard|James)/i,
-      /\b(Prabhat|Ravi|Guy|Ryan|Andrew|Brian|Christopher|Eric|Steffan|Roger|George|Mark|David|Richard|James|Daniel|Alex|Oliver|Rishi|Aaron|Fred)\b/i
-    ];
-
+    const candidateVoices = voices.filter((v) => /en/i.test(v.lang) && !isFemaleVoice(v));
     const pool = [];
-    for (const pattern of strictMalePatterns) {
+
+    // 1. Local hardware Male voices first (0ms latency, never hangs in Chrome)
+    const localMalePatterns = [
+      /Microsoft (Ravi|Prabhat)/i,
+      /Microsoft (David|Mark|George|James|Richard)/i,
+      /\b(Ravi|Prabhat|David|Mark|George|Guy|Ryan|Andrew|Brian|Daniel|Alex|Oliver|Rishi|Aaron|Fred)\b/i
+    ];
+    for (const pattern of localMalePatterns) {
+      for (const v of candidateVoices) {
+        if (v.localService && pattern.test(`${v.name} ${v.voiceURI}`) && !pool.includes(v)) {
+          pool.push(v);
+        }
+      }
+    }
+
+    // 2. Any other local English non-female hardware voice
+    for (const v of candidateVoices) {
+      if (v.localService && !pool.includes(v)) {
+        pool.push(v);
+      }
+    }
+
+    // 3. Online/Neural Male voices (with watchdog failover)
+    const onlineMalePatterns = [
+      /Microsoft (Andrew|Brian|Guy|Prabhat|Ryan|Christopher|Eric|Steffan|Roger)/i,
+      /Google UK English Male/i,
+      /\b(Prabhat|Ravi|Guy|Ryan|Andrew|Brian|Christopher|Eric|Steffan|Roger|George|Mark|David|Male)\b/i
+    ];
+    for (const pattern of onlineMalePatterns) {
       for (const v of candidateVoices) {
         if (pattern.test(`${v.name} ${v.voiceURI}`) && !pool.includes(v)) {
           pool.push(v);
@@ -610,7 +625,7 @@ function App() {
       .trim();
   };
 
-  // Human-Cadence Male Speech Engine (Never falls back to OS default female voice)
+  // Human-Cadence Male Speech Engine with 750ms Watchdog Failover (Never Stalls or Goes Silent)
   const speakWithBrowserTTS = useCallback((text, msgIdx = null, forceUnmute = false) => {
     const currentlyMuted = isMuted && !forceUnmute;
     if (currentlyMuted || typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -626,10 +641,10 @@ function App() {
       ttsWatcherRef.current = null;
     }
 
-    if (window.speechSynthesis.speaking || window.speechSynthesis.pending || window.speechSynthesis.paused) {
-      lastCancelTimeRef.current = Date.now();
-      window.speechSynthesis.cancel();
-    }
+    // Always flush Chrome speech queue to prevent zombie lockups
+    lastCancelTimeRef.current = Date.now();
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
 
     const cleanText = cleanTextForSpeech(text);
     if (!cleanText) {
@@ -640,7 +655,6 @@ function App() {
       return;
     }
 
-    // Group sentences into natural human breath phrases (~165 chars)
     const rawSentences = (cleanText.match(/[^.!?]+[.!?]*/g) || [cleanText])
       .map(s => s.trim())
       .filter(s => /[a-zA-Z0-9]/.test(s));
@@ -648,7 +662,7 @@ function App() {
     const chunks = [];
     let currentChunk = '';
     for (const s of rawSentences) {
-      if ((currentChunk + ' ' + s).trim().length <= 165) {
+      if ((currentChunk + ' ' + s).trim().length <= 170) {
         currentChunk = (currentChunk + ' ' + s).trim();
       } else {
         if (currentChunk) chunks.push(currentChunk);
@@ -669,6 +683,10 @@ function App() {
     let voiceRetryCount = 0;
 
     const finishSpeech = () => {
+      if (ttsWatcherRef.current) {
+        clearTimeout(ttsWatcherRef.current);
+        ttsWatcherRef.current = null;
+      }
       ttsActiveRef.current = false;
       hasChunkStartedRef.current = false;
       chunkStartTimestampRef.current = 0;
@@ -688,18 +706,12 @@ function App() {
 
       const malePool = selectBestMaleVoice();
 
-      // Wait for browser voices to load if pool is momentarily empty on first load (prevents OS female default!)
-      if (malePool.length === 0) {
-        if (voiceRetryCount < 12) {
-          voiceRetryCount += 1;
-          window.speechSynthesis.getVoices();
-          ttsWatcherRef.current = setTimeout(() => {
-            if (ttsActiveRef.current) speakNextChunk(voiceFailoverIdx);
-          }, 60);
-          return;
-        }
-        // If no male voice exists on the device at all, stay silent rather than playing a female voice
-        finishSpeech();
+      if (malePool.length === 0 && voiceRetryCount < 10) {
+        voiceRetryCount += 1;
+        window.speechSynthesis.getVoices();
+        ttsWatcherRef.current = setTimeout(() => {
+          if (ttsActiveRef.current) speakNextChunk(voiceFailoverIdx);
+        }, 50);
         return;
       }
 
@@ -707,28 +719,50 @@ function App() {
         window.speechSynthesis.resume();
       }
 
-      const chosenMaleVoice = malePool[voiceFailoverIdx] || malePool[0];
-      const isNaturalNeural = /Natural|Google UK English Male/i.test(chosenMaleVoice.name);
-
+      const chosenMaleVoice = malePool[voiceFailoverIdx] || malePool[0] || null;
       const utterance = new SpeechSynthesisUtterance(chunks[currentIdx]);
       utteranceRef.current = utterance;
       chunkStartTimestampRef.current = Date.now();
+      let chunkStarted = false;
 
-      // Strictly lock the verified male voice object
-      utterance.voice = chosenMaleVoice;
-      utterance.lang = chosenMaleVoice.lang || 'en-US';
-      // Composed, natural human presenter cadence
-      utterance.rate = isNaturalNeural ? 1.0 : 0.97;
-      utterance.pitch = isNaturalNeural ? 0.98 : 0.94;
+      if (chosenMaleVoice) {
+        utterance.voice = chosenMaleVoice;
+        utterance.lang = chosenMaleVoice.lang || 'en-US';
+        utterance.rate = 0.99;
+        utterance.pitch = 0.96;
+      } else {
+        utterance.lang = 'en-GB';
+        utterance.rate = 0.98;
+        utterance.pitch = 0.84;
+      }
       utterance.volume = 1.0;
+
+      // 750ms Watchdog: if a voice hangs silently without starting, auto-switch to next male voice
+      if (ttsWatcherRef.current) clearTimeout(ttsWatcherRef.current);
+      ttsWatcherRef.current = setTimeout(() => {
+        if (!ttsActiveRef.current || utteranceRef.current !== utterance || chunkStarted) return;
+        if (window.speechSynthesis.speaking) {
+          chunkStarted = true;
+          startMutedLipSync();
+          return;
+        }
+        window.speechSynthesis.cancel();
+        if (voiceFailoverIdx + 1 < malePool.length) {
+          speakNextChunk(voiceFailoverIdx + 1);
+        } else {
+          startMutedLipSync();
+        }
+      }, 750);
 
       utterance.onstart = () => {
         if (utteranceRef.current !== utterance || !ttsActiveRef.current) return;
+        chunkStarted = true;
         startMutedLipSync();
       };
 
       utterance.onboundary = () => {
         if (utteranceRef.current !== utterance || !ttsActiveRef.current) return;
+        chunkStarted = true;
         startMutedLipSync();
       };
 
@@ -744,16 +778,16 @@ function App() {
 
       utterance.onend = () => {
         if (utteranceRef.current !== utterance) return;
+        if (ttsWatcherRef.current) clearTimeout(ttsWatcherRef.current);
         if (!ttsActiveRef.current) {
           finishSpeech();
           return;
         }
         currentIdx += 1;
         if (currentIdx < chunks.length) {
-          // 90ms natural human breath pause between sentence groups
           ttsWatcherRef.current = setTimeout(() => {
             if (ttsActiveRef.current) speakNextChunk(voiceFailoverIdx);
-          }, 90);
+          }, 70);
         } else {
           finishSpeech();
         }
@@ -761,6 +795,7 @@ function App() {
 
       utterance.onerror = (e) => {
         if (utteranceRef.current !== utterance) return;
+        if (ttsWatcherRef.current) clearTimeout(ttsWatcherRef.current);
         if (e && (e.error === 'canceled' || e.error === 'interrupted')) {
           return;
         }
@@ -775,18 +810,11 @@ function App() {
       window.speechSynthesis.speak(utterance);
     };
 
-    const timeSinceCancel = Date.now() - lastCancelTimeRef.current;
-    const waitMs = timeSinceCancel < 80 ? 80 - timeSinceCancel : 0;
-
-    if (waitMs > 0) {
-      ttsWatcherRef.current = setTimeout(() => {
-        if (ttsActiveRef.current) {
-          speakNextChunk(0);
-        }
-      }, waitMs);
-    } else {
-      speakNextChunk(0);
-    }
+    ttsWatcherRef.current = setTimeout(() => {
+      if (ttsActiveRef.current) {
+        speakNextChunk(0);
+      }
+    }, 65);
   }, [isMuted, selectBestMaleVoice, startMutedLipSync, stopLipSync]);
 
   const handleStopResponse = () => {
@@ -1282,9 +1310,6 @@ function App() {
                     <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-slate-500">
                       Core Proficiencies
                     </h2>
-                    <span className="text-[11px] font-mono text-slate-600">
-                      
-                    </span>
                   </div>
 
                   {(() => {
@@ -1399,18 +1424,15 @@ function App() {
                               key={branch.index}
                               className="group relative py-5 first:pt-2 last:pb-2 flex flex-col md:flex-row md:items-start gap-3.5 md:gap-8"
                             >
-                              {/* Left Branch Label with Perfectly Centered Spine Dot */}
-                              <div className="relative md:w-56 shrink-0 flex items-center gap-2.5 md:pt-1.5">
-                                <span className="absolute -left-5 md:-left-7 w-2.5 h-2.5 rounded-full bg-[#050505] border border-white/35 group-hover:border-white group-hover:bg-white transition-all" />
-                                <span className="text-[11px] font-mono text-slate-500 group-hover:text-slate-300 transition-colors">
-                                  {branch.index}
-                                </span>
-                                <h3 className="text-xs md:text-sm font-semibold text-slate-200 group-hover:text-white tracking-tight transition-colors">
+                              {/* Left Branch Label with Perfectly Centered Spine Dot (No 01, 02 Numbers) */}
+                              <div className="relative md:w-52 shrink-0 flex items-center md:h-[30px]">
+                                <span className="absolute -left-5 md:-left-7 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[#050505] border border-white/35 group-hover:border-white group-hover:bg-white transition-all" />
+                                <h3 className="text-xs md:text-sm font-semibold text-slate-300 group-hover:text-white tracking-tight transition-colors">
                                   {branch.title}
                                 </h3>
                               </div>
 
-                              {/* Right Skills Stream */}
+                              {/* Right Skills Stream (Subtle Semi-Transparent Glass Pills) */}
                               <div className="flex-1 flex flex-wrap items-center gap-2">
                                 {branch.items.map((skill, idx) => {
                                   const iconInfo = getSkillIconInfo(skill);
