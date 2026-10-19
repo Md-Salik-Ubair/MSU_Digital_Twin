@@ -110,7 +110,7 @@ function App() {
 
   const [itemForm, setItemForm] = useState({
     category: 'projects', title: '', organization_or_issuer: '', duration_or_date: '',
-    description: '', hidden_readme: '', tag_or_skills_mapped: '', smart_links: [], image_urls: []
+    description: '', hidden_readme: '', tag_or_skills_mapped: '', is_new: false, smart_links: [], image_urls: []
   });
   const [tempLink, setTempLink] = useState({ label: '', url: '' });
 
@@ -516,6 +516,7 @@ function App() {
       description: node.description || '',
       hidden_readme: node.hidden_readme || '',
       tag_or_skills_mapped: node.tag_or_skills_mapped || '',
+      is_new: Boolean(node.is_new),
       smart_links: loadedSmartLinks,
       image_urls: node.image_urls || []
     });
