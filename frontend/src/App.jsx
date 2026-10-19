@@ -1276,11 +1276,16 @@ function App() {
                   </div>
                 </div>
 
-                {/* CORE PROFICIENCIES — DESIGN B: 2x2 ARCHITECTURAL BENTO MATRIX */}
-                <div className="space-y-8 pt-4">
-                  <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-slate-500 border-b border-white/[0.04] pb-4">
-                    Core Proficiencies
-                  </h2>
+                {/* CORE PROFICIENCIES — REFINED PLAN A: CLEAN ARCHITECTURAL SPINE */}
+                <div className="space-y-6 pt-4">
+                  <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+                    <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-slate-500">
+                      Core Proficiencies
+                    </h2>
+                    <span className="text-[11px] font-mono text-slate-600">
+                      System Stack
+                    </span>
+                  </div>
 
                   {(() => {
                     const rawSkills = backendData?.profile_core?.skills_list
@@ -1291,77 +1296,105 @@ function App() {
                       return <span className="text-xs text-slate-500 font-mono">Loading proficiencies...</span>;
                     }
 
-                    const groups = [
+                    const branches = [
                       {
                         index: '01',
-                        title: 'AI & RAG Orchestration',
+                        title: 'AI & RAG Architecture',
                         match: /rag|retrieval|orchestrat|semantic|embedding|rerank|cohere|jina|tavily|langchain|llamaindex|agent|knowledge/i,
                         items: []
                       },
                       {
                         index: '02',
-                        title: 'Models & Inference Engines',
+                        title: 'LLMs & Inference',
                         match: /groq|gemini|mistral|openrouter|cerebras|ollama|llama|whisper|openai|claude|machine learning|computer vision|deep learning|nlp|tensorflow|pytorch|scikit/i,
                         items: []
                       },
                       {
                         index: '03',
-                        title: 'Backend, Data & Vector Stores',
-                        match: /python|fastapi|flask|django|node|chromadb|chroma|supabase|pgvector|postgres|sql|mysql|redis|mongo|sse|streaming|numpy|pandas|^c$|c\+\+|java|docker|linux|aws/i,
+                        title: 'Backend & Vector Stores',
+                        match: /python|fastapi|flask|django|node|chromadb|chroma|supabase|pgvector|postgres|sql|mysql|redis|mongo|sse|streaming|numpy|pandas|docker|linux|aws/i,
                         items: []
                       },
                       {
                         index: '04',
-                        title: 'Frontend & Systems Tooling',
-                        match: /next|react|typescript|javascript|tailwind|html|css|git|github|vite|vercel|figma/i,
+                        title: 'Frontend & Languages',
+                        match: /next|react|typescript|javascript|^js$\vert{}^c$|c\+\+|\bjava\b|tailwind|html|css|git|github|vite|vercel|figma/i,
                         items: []
                       }
                     ];
 
                     rawSkills.forEach((skill) => {
-                      const target = groups.find(g => g.match.test(skill)) || groups[2];
+                      const target = branches.find(b => b.match.test(skill)) || branches[2];
                       target.items.push(skill);
                     });
 
-                    return (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                        {groups.filter(g => g.items.length > 0).map((group) => (
-                          <div
-                            key={group.index}
-                            className="bg-white/[0.01] hover:bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.1] rounded-3xl p-6 md:p-7 transition-all duration-300 flex flex-col justify-between space-y-5"
-                          >
-                            <div className="flex items-center justify-between border-b border-white/[0.04] pb-3.5">
-                              <h3 className="text-sm font-semibold text-white tracking-tight">
-                                {group.title}
-                              </h3>
-                              <span className="text-[11px] font-mono text-slate-600">
-                                {group.index}
-                              </span>
-                            </div>
+                    const getCustomBrandBadge = (skillName) => {
+                      const s = skillName.toLowerCase();
+                      if (s.includes('gemini')) return { symbol: '✦', color: 'text-sky-400' };
+                      if (s.includes('openai') || s.includes('whisper')) return { symbol: '◎', color: 'text-emerald-400' };
+                      if (s.includes('llama') || s.includes('ollama')) return { symbol: '◈', color: 'text-indigo-400' };
+                      if (s.includes('mistral') || s.includes('groq') || s.includes('cerebras')) return { symbol: '⚡', color: 'text-amber-400/90' };
+                      if (s.includes('chromadb') || s.includes('embedding') || s.includes('semantic')) return { symbol: '❖', color: 'text-purple-400/90' };
+                      return null;
+                    };
 
-                            <div className="flex flex-wrap items-center gap-2">
-                              {group.items.map((skill, idx) => {
-                                const iconInfo = getSkillIconInfo(skill);
-                                const displayLabel = skill.toLowerCase() === 'c' ? 'C Language' : skill;
-                                return (
-                                  <span
-                                    key={idx}
-                                    className="inline-flex items-center gap-2 bg-white/[0.025] hover:bg-white/[0.06] border border-white/[0.07] hover:border-white/20 text-slate-300 hover:text-white text-xs font-mono px-3 py-1.5 rounded-lg transition-colors cursor-default"
-                                  >
-                                    {iconInfo && (
-                                      <img
-                                        src={iconInfo.url}
-                                        alt=""
-                                        className={`w-3.5 h-3.5 object-contain shrink-0 ${iconInfo.invert ? 'invert brightness-200' : ''}`}
-                                      />
-                                    )}
-                                    <span>{displayLabel}</span>
-                                  </span>
-                                );
-                              })}
+                    return (
+                      <div className="relative pl-4 md:pl-6">
+                        {/* Continuous Vertical Root Spine */}
+                        <div className="absolute left-[5px] md:left-[7px] top-3 bottom-3 w-[1px] bg-white/[0.08]" />
+
+                        <div className="divide-y divide-white/[0.05]">
+                          {branches.filter(b => b.items.length > 0).map((branch) => (
+                            <div
+                              key={branch.index}
+                              className="group relative py-5 first:pt-2 last:pb-2 flex flex-col md:flex-row md:items-baseline gap-3.5 md:gap-8"
+                            >
+                              {/* Root Node Dot on the Spine */}
+                              <span className="absolute -left-4 md:-left-6 top-[26px] first:top-[14px] w-2.5 h-2.5 rounded-full bg-[#050505] border border-white/30 group-hover:border-white group-hover:bg-white transition-colors" />
+
+                              {/* Left Branch Label (Fixed width, zero wasted space) */}
+                              <div className="md:w-56 shrink-0 flex items-center gap-2.5">
+                                <span className="text-[11px] font-mono text-slate-600 group-hover:text-slate-400 transition-colors">
+                                  {branch.index}
+                                </span>
+                                <h3 className="text-xs md:text-sm font-semibold text-slate-200 group-hover:text-white tracking-tight transition-colors">
+                                  {branch.title}
+                                </h3>
+                              </div>
+
+                              {/* Right Skills Stream */}
+                              <div className="flex-1 flex flex-wrap items-center gap-2">
+                                {branch.items.map((skill, idx) => {
+                                  const iconInfo = getSkillIconInfo(skill);
+                                  const brandBadge = !iconInfo ? getCustomBrandBadge(skill) : null;
+                                  const displayLabel = skill.toLowerCase() === 'c' ? 'C' : skill;
+
+                                  return (
+                                    <span
+                                      key={idx}
+                                      className="inline-flex items-center gap-2 bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.07] hover:border-white/20 text-slate-300 hover:text-white text-xs font-mono px-3.5 py-1.5 rounded-full transition-all duration-200 cursor-default"
+                                    >
+                                      {iconInfo ? (
+                                        <img
+                                          src={iconInfo.url}
+                                          alt=""
+                                          className={`w-3.5 h-3.5 object-contain shrink-0 ${iconInfo.invert ? 'invert brightness-200' : ''}`}
+                                        />
+                                      ) : brandBadge ? (
+                                        <span className={`text-[10px] leading-none ${brandBadge.color}`}>
+                                          {brandBadge.symbol}
+                                        </span>
+                                      ) : (
+                                        <span className="w-1 h-1 rounded-full bg-white/35 shrink-0" />
+                                      )}
+                                      <span>{displayLabel}</span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     );
                   })()}
