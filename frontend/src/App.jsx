@@ -1276,14 +1276,14 @@ function App() {
                   </div>
                 </div>
 
-                {/* CORE PROFICIENCIES — REFINED PLAN A: CLEAN ARCHITECTURAL SPINE */}
+                {/* CORE PROFICIENCIES — FINAL POLISHED ARCHITECTURAL SPINE */}
                 <div className="space-y-6 pt-4">
                   <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
                     <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-slate-500">
                       Core Proficiencies
                     </h2>
                     <span className="text-[11px] font-mono text-slate-600">
-                      System Stack
+                      System Architecture
                     </span>
                   </div>
 
@@ -1318,7 +1318,7 @@ function App() {
                       {
                         index: '04',
                         title: 'Frontend & Languages',
-                        match: /next|react|typescript|javascript|^js$\vert{}^c$|c\+\+|\bjava\b|tailwind|html|css|git|github|vite|vercel|figma/i,
+                        match: /next|react|typescript|javascript|\bjs\b|\bc\b|c\+\+|\bjava\b|tailwind|html|css|git|github|vite|vercel|figma/i,
                         items: []
                       }
                     ];
@@ -1328,33 +1328,81 @@ function App() {
                       target.items.push(skill);
                     });
 
-                    const getCustomBrandBadge = (skillName) => {
+                    const renderCustomSvgIcon = (skillName, branchIndex) => {
                       const s = skillName.toLowerCase();
-                      if (s.includes('gemini')) return { symbol: '✦', color: 'text-sky-400' };
-                      if (s.includes('openai') || s.includes('whisper')) return { symbol: '◎', color: 'text-emerald-400' };
-                      if (s.includes('llama') || s.includes('ollama')) return { symbol: '◈', color: 'text-indigo-400' };
-                      if (s.includes('mistral') || s.includes('groq') || s.includes('cerebras')) return { symbol: '⚡', color: 'text-amber-400/90' };
-                      if (s.includes('chromadb') || s.includes('embedding') || s.includes('semantic')) return { symbol: '❖', color: 'text-purple-400/90' };
-                      return null;
+                      if (s.includes('gemini')) {
+                        return (
+                          <svg className="w-3.5 h-3.5 text-sky-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C12.5 7.5 16.5 11.5 22 12C16.5 12.5 12.5 16.5 12 22C11.5 16.5 7.5 12.5 2 12C7.5 11.5 11.5 7.5 12 2Z" />
+                          </svg>
+                        );
+                      }
+                      if (s.includes('openai') || s.includes('whisper')) {
+                        return (
+                          <svg className="w-3.5 h-3.5 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                            <circle cx="12" cy="12" r="8" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        );
+                      }
+                      if (s.includes('groq') || s.includes('cerebras') || s.includes('mistral') || s.includes('sse')) {
+                        return (
+                          <svg className="w-3.5 h-3.5 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M13 2L4 14h7l-2 8 9-12h-7l2-8z" />
+                          </svg>
+                        );
+                      }
+                      if (s.includes('ollama') || s.includes('llama') || s.includes('openrouter')) {
+                        return (
+                          <svg className="w-3.5 h-3.5 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                            <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                            <polyline points="2 17 12 22 22 17" />
+                            <polyline points="2 12 12 17 22 12" />
+                          </svg>
+                        );
+                      }
+                      if (s.includes('chroma') || s.includes('embedding') || s.includes('semantic') || s.includes('rerank')) {
+                        return (
+                          <svg className="w-3.5 h-3.5 text-purple-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                            <ellipse cx="12" cy="5" rx="8" ry="3" />
+                            <path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
+                            <path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
+                          </svg>
+                        );
+                      }
+                      if (branchIndex === '01') {
+                        return (
+                          <svg className="w-3.5 h-3.5 text-sky-400/90 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                            <circle cx="6" cy="6" r="2.5" />
+                            <circle cx="18" cy="6" r="2.5" />
+                            <circle cx="12" cy="18" r="2.5" />
+                            <path d="M8 7.5l3 8.5m5-8.5l-3 8.5M8.5 6h7" />
+                          </svg>
+                        );
+                      }
+                      return (
+                        <svg className="w-3.5 h-3.5 text-indigo-400/90 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <rect x="6" y="6" width="12" height="12" rx="2" />
+                          <path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4" />
+                        </svg>
+                      );
                     };
 
                     return (
-                      <div className="relative pl-4 md:pl-6">
+                      <div className="relative pl-5 md:pl-7">
                         {/* Continuous Vertical Root Spine */}
-                        <div className="absolute left-[5px] md:left-[7px] top-3 bottom-3 w-[1px] bg-white/[0.08]" />
+                        <div className="absolute left-[5px] md:left-[7px] top-4 bottom-4 w-[1px] bg-gradient-to-b from-white/25 via-white/10 to-white/5" />
 
                         <div className="divide-y divide-white/[0.05]">
                           {branches.filter(b => b.items.length > 0).map((branch) => (
                             <div
                               key={branch.index}
-                              className="group relative py-5 first:pt-2 last:pb-2 flex flex-col md:flex-row md:items-baseline gap-3.5 md:gap-8"
+                              className="group relative py-5 first:pt-2 last:pb-2 flex flex-col md:flex-row md:items-start gap-3.5 md:gap-8"
                             >
-                              {/* Root Node Dot on the Spine */}
-                              <span className="absolute -left-4 md:-left-6 top-[26px] first:top-[14px] w-2.5 h-2.5 rounded-full bg-[#050505] border border-white/30 group-hover:border-white group-hover:bg-white transition-colors" />
-
-                              {/* Left Branch Label (Fixed width, zero wasted space) */}
-                              <div className="md:w-56 shrink-0 flex items-center gap-2.5">
-                                <span className="text-[11px] font-mono text-slate-600 group-hover:text-slate-400 transition-colors">
+                              {/* Left Branch Label with Perfectly Centered Spine Dot */}
+                              <div className="relative md:w-56 shrink-0 flex items-center gap-2.5 md:pt-1.5">
+                                <span className="absolute -left-5 md:-left-7 w-2.5 h-2.5 rounded-full bg-[#050505] border border-white/35 group-hover:border-white group-hover:bg-white transition-all" />
+                                <span className="text-[11px] font-mono text-slate-500 group-hover:text-slate-300 transition-colors">
                                   {branch.index}
                                 </span>
                                 <h3 className="text-xs md:text-sm font-semibold text-slate-200 group-hover:text-white tracking-tight transition-colors">
@@ -1366,13 +1414,12 @@ function App() {
                               <div className="flex-1 flex flex-wrap items-center gap-2">
                                 {branch.items.map((skill, idx) => {
                                   const iconInfo = getSkillIconInfo(skill);
-                                  const brandBadge = !iconInfo ? getCustomBrandBadge(skill) : null;
-                                  const displayLabel = skill.toLowerCase() === 'c' ? 'C' : skill;
+                                  const displayLabel = skill.toLowerCase() === 'c' ? 'C Language' : skill;
 
                                   return (
                                     <span
                                       key={idx}
-                                      className="inline-flex items-center gap-2 bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.07] hover:border-white/20 text-slate-300 hover:text-white text-xs font-mono px-3.5 py-1.5 rounded-full transition-all duration-200 cursor-default"
+                                      className="inline-flex items-center gap-2 bg-white/[0.025] hover:bg-white/[0.06] border border-white/[0.07] hover:border-white/20 text-slate-200 hover:text-white text-xs font-mono px-3.5 py-1.5 rounded-full transition-all duration-200 cursor-default"
                                     >
                                       {iconInfo ? (
                                         <img
@@ -1380,12 +1427,8 @@ function App() {
                                           alt=""
                                           className={`w-3.5 h-3.5 object-contain shrink-0 ${iconInfo.invert ? 'invert brightness-200' : ''}`}
                                         />
-                                      ) : brandBadge ? (
-                                        <span className={`text-[10px] leading-none ${brandBadge.color}`}>
-                                          {brandBadge.symbol}
-                                        </span>
                                       ) : (
-                                        <span className="w-1 h-1 rounded-full bg-white/35 shrink-0" />
+                                        renderCustomSvgIcon(skill, branch.index)
                                       )}
                                       <span>{displayLabel}</span>
                                     </span>
