@@ -1276,178 +1276,92 @@ function App() {
                   </div>
                 </div>
 
-                {/* CORE PROFICIENCIES — DESIGN A: ROOT-TO-BRANCH SYSTEM ARCHITECTURE TREE */}
-                <div className="pt-4">
+                {/* CORE PROFICIENCIES — DESIGN B: 2x2 ARCHITECTURAL BENTO MATRIX */}
+                <div className="space-y-8 pt-4">
+                  <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-slate-500 border-b border-white/[0.04] pb-4">
+                    Core Proficiencies
+                  </h2>
+
                   {(() => {
                     const rawSkills = backendData?.profile_core?.skills_list
                       ? backendData.profile_core.skills_list.split(',').map(s => s.trim()).filter(Boolean)
                       : [];
 
-                    const branches = [
+                    if (rawSkills.length === 0) {
+                      return <span className="text-xs text-slate-500 font-mono">Loading proficiencies...</span>;
+                    }
+
+                    const groups = [
                       {
-                        id: '01',
-                        code: 'ARCH_RAG',
-                        title: 'AI & RAG Architecture',
-                        subtitle: 'Retrieval, Vector Search & Orchestration',
-                        match: /rag|retrieval|orchestrat|semantic|embedding|vector|rerank|cohere|jina|tavily|langchain|llamaindex|agent|graph|knowledge/i,
+                        index: '01',
+                        title: 'AI & RAG Orchestration',
+                        match: /rag|retrieval|orchestrat|semantic|embedding|rerank|cohere|jina|tavily|langchain|llamaindex|agent|knowledge/i,
                         items: []
                       },
                       {
-                        id: '02',
-                        code: 'LLM_INF',
-                        title: 'LLM & Inference Engines',
-                        subtitle: 'Foundation Models, High-Speed Inference & Vision',
-                        match: /groq|gemini|mistral|openrouter|cerebras|ollama|llama|whisper|openai|claude|anthropic|machine learning|computer vision|deep learning|nlp|tensorflow|pytorch|scikit/i,
+                        index: '02',
+                        title: 'Models & Inference Engines',
+                        match: /groq|gemini|mistral|openrouter|cerebras|ollama|llama|whisper|openai|claude|machine learning|computer vision|deep learning|nlp|tensorflow|pytorch|scikit/i,
                         items: []
                       },
                       {
-                        id: '03',
-                        code: 'SYS_DATA',
+                        index: '03',
                         title: 'Backend, Data & Vector Stores',
-                        subtitle: 'Async APIs, Memory Pooling & Distributed Storage',
                         match: /python|fastapi|flask|django|node|chromadb|chroma|supabase|pgvector|postgres|sql|mysql|redis|mongo|sse|streaming|numpy|pandas|^c$|c\+\+|java|docker|linux|aws/i,
                         items: []
                       },
                       {
-                        id: '04',
-                        code: 'UI_TOOL',
+                        index: '04',
                         title: 'Frontend & Systems Tooling',
-                        subtitle: 'Reactive Interfaces, Type Safety & Version Control',
                         match: /next|react|typescript|javascript|tailwind|html|css|git|github|vite|vercel|figma/i,
                         items: []
                       }
                     ];
 
                     rawSkills.forEach((skill) => {
-                      const target =
-                        branches.find(b => b.match.test(skill)) ||
-                        branches[2];
+                      const target = groups.find(g => g.match.test(skill)) || groups[2];
                       target.items.push(skill);
                     });
 
-                    const activeBranches = branches.filter(b => b.items.length > 0);
-
-                    const renderBranchFallbackIcon = (branchId) => {
-                      if (branchId === '01') {
-                        return (
-                          <svg className="w-3.5 h-3.5 text-sky-400/90 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <circle cx="6" cy="6" r="2.5" />
-                            <circle cx="18" cy="6" r="2.5" />
-                            <circle cx="12" cy="18" r="2.5" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7.5l3 8.5m5-8.5l-3 8.5M8.5 6h7" />
-                          </svg>
-                        );
-                      }
-                      if (branchId === '02') {
-                        return (
-                          <svg className="w-3.5 h-3.5 text-indigo-400/90 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <rect x="7" y="7" width="10" height="10" rx="2" />
-                            <path strokeLinecap="round" d="M9 3v4m6-4v4M9 17v4m6-4v4M3 9h4m-4 6h4m10-6h4m-4 6h4" />
-                          </svg>
-                        );
-                      }
-                      if (branchId === '03') {
-                        return (
-                          <svg className="w-3.5 h-3.5 text-emerald-400/90 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <ellipse cx="12" cy="6" rx="7" ry="3" />
-                            <path strokeLinecap="round" d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6" />
-                            <path strokeLinecap="round" d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6" />
-                          </svg>
-                        );
-                      }
-                      return (
-                        <svg className="w-3.5 h-3.5 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-                        </svg>
-                      );
-                    };
-
                     return (
-                      <div>
-                        {/* Root Node Header */}
-                        <div className="flex items-center justify-between border-b border-white/[0.06] pb-4 mb-8">
-                          <div className="flex items-center gap-3">
-                            <div className="w-5 h-5 rounded-md bg-white/[0.05] border border-white/15 flex items-center justify-center">
-                              <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+                        {groups.filter(g => g.items.length > 0).map((group) => (
+                          <div
+                            key={group.index}
+                            className="bg-white/[0.01] hover:bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.1] rounded-3xl p-6 md:p-7 transition-all duration-300 flex flex-col justify-between space-y-5"
+                          >
+                            <div className="flex items-center justify-between border-b border-white/[0.04] pb-3.5">
+                              <h3 className="text-sm font-semibold text-white tracking-tight">
+                                {group.title}
+                              </h3>
+                              <span className="text-[11px] font-mono text-slate-600">
+                                {group.index}
+                              </span>
                             </div>
-                            <h3 className="text-xs font-mono uppercase tracking-[0.22em] text-slate-300 font-semibold">
-                              Core Proficiencies
-                            </h3>
-                            <span className="text-[11px] font-mono text-slate-600 hidden sm:inline">
-                              // root_architecture_tree
-                            </span>
-                          </div>
-                          <span className="text-[11px] font-mono text-slate-500">
-                            {rawSkills.length} active modules
-                          </span>
-                        </div>
 
-                        {rawSkills.length === 0 ? (
-                          <span className="text-xs text-slate-500 font-mono">Loading architecture tree...</span>
-                        ) : (
-                          /* Main Root Spine & Branches */
-                          <div className="relative pl-5 md:pl-8">
-                            {/* Vertical Root Spine Line */}
-                            <div className="absolute left-[9px] md:left-[15px] top-2 bottom-6 w-[1.5px] bg-gradient-to-b from-white/25 via-white/10 to-white/[0.03]" />
-
-                            <div className="space-y-8 md:space-y-10">
-                              {activeBranches.map((branch) => (
-                                <div key={branch.id} className="relative group">
-                                  {/* Horizontal Branch Connector Elbow + Junction Node */}
-                                  <div className="absolute -left-5 md:-left-8 top-4 flex items-center">
-                                    <div className="w-2.5 h-2.5 rounded-full bg-[#050505] border-2 border-white/40 group-hover:border-white group-hover:scale-110 transition-all z-10" />
-                                    <div className="w-3.5 md:w-6 h-[1.5px] bg-white/15 group-hover:bg-white/35 transition-colors" />
-                                  </div>
-
-                                  {/* Branch Container */}
-                                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 items-start bg-white/[0.01] hover:bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.1] rounded-2xl p-5 md:p-6 transition-all duration-300">
-                                    
-                                    {/* Left Branch Metadata */}
-                                    <div className="lg:col-span-4 space-y-1.5 lg:border-r lg:border-white/[0.05] lg:pr-6">
-                                      <div className="flex items-center gap-2 font-mono text-[10px] tracking-widest uppercase text-slate-500">
-                                        <span className="text-white/70 font-semibold">BRANCH {branch.id}</span>
-                                        <span>•</span>
-                                        <span>{branch.code}</span>
-                                      </div>
-                                      <h4 className="text-sm md:text-base font-bold text-white tracking-tight">
-                                        {branch.title}
-                                      </h4>
-                                      <p className="text-xs text-slate-500 leading-relaxed">
-                                        {branch.subtitle}
-                                      </p>
-                                    </div>
-
-                                    {/* Right Leaf Nodes (Skills) */}
-                                    <div className="lg:col-span-8 flex flex-wrap items-center gap-2 md:gap-2.5">
-                                      {branch.items.map((skill, sIdx) => {
-                                        const iconInfo = getSkillIconInfo(skill);
-                                        const displayLabel = skill.toLowerCase() === 'c' ? 'C Language' : skill;
-                                        return (
-                                          <div
-                                            key={sIdx}
-                                            className="inline-flex items-center gap-2 bg-[#0b0b0e] hover:bg-white/[0.06] border border-white/[0.07] hover:border-white/20 text-slate-200 hover:text-white text-xs px-3.5 py-2 rounded-xl font-mono transition-all duration-200 cursor-default shadow-sm"
-                                          >
-                                            {iconInfo ? (
-                                              <img
-                                                src={iconInfo.url}
-                                                alt=""
-                                                className={`w-3.5 h-3.5 object-contain shrink-0 ${iconInfo.invert ? 'invert brightness-200' : ''}`}
-                                              />
-                                            ) : (
-                                              renderBranchFallbackIcon(branch.id)
-                                            )}
-                                            <span>{displayLabel}</span>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-
-                                  </div>
-                                </div>
-                              ))}
+                            <div className="flex flex-wrap items-center gap-2">
+                              {group.items.map((skill, idx) => {
+                                const iconInfo = getSkillIconInfo(skill);
+                                const displayLabel = skill.toLowerCase() === 'c' ? 'C Language' : skill;
+                                return (
+                                  <span
+                                    key={idx}
+                                    className="inline-flex items-center gap-2 bg-white/[0.025] hover:bg-white/[0.06] border border-white/[0.07] hover:border-white/20 text-slate-300 hover:text-white text-xs font-mono px-3 py-1.5 rounded-lg transition-colors cursor-default"
+                                  >
+                                    {iconInfo && (
+                                      <img
+                                        src={iconInfo.url}
+                                        alt=""
+                                        className={`w-3.5 h-3.5 object-contain shrink-0 ${iconInfo.invert ? 'invert brightness-200' : ''}`}
+                                      />
+                                    )}
+                                    <span>{displayLabel}</span>
+                                  </span>
+                                );
+                              })}
                             </div>
                           </div>
-                        )}
+                        ))}
                       </div>
                     );
                   })()}
@@ -1701,29 +1615,21 @@ function App() {
             )}
           </main>
 
-          {/* EXECUTIVE AI DIGITAL TWIN LAUNCHER (Voice Equalizer Pill — No Duplicate Photo) */}
+          {/* EXECUTIVE AI DIGITAL TWIN LAUNCHER (High-Contrast Minimal Trigger) */}
           {!isChatOpen && currentView === 'portfolio' && (
             <div className="fixed bottom-6 right-6 z-[100] animate-fadeIn">
               <button
                 type="button"
                 onClick={() => setIsChatOpen(true)}
-                title="Interact with Salik's AI Digital Twin"
-                className="group flex items-center gap-3 bg-[#0a0b0e]/95 hover:bg-[#12141a] backdrop-blur-2xl border border-white/15 hover:border-white/30 pl-3.5 pr-4 py-2.5 rounded-full shadow-[0_14px_40px_rgba(0,0,0,0.9)] transition-all duration-300 hover:scale-[1.03] outline-none cursor-pointer"
+                title="Interact with Salik's Digital Twin"
+                className="group flex items-center gap-2.5 bg-white hover:bg-slate-200 text-black px-5 py-3 rounded-full shadow-[0_10px_35px_rgba(255,255,255,0.15)] transition-all duration-200 hover:-translate-y-0.5 outline-none cursor-pointer"
               >
-                {/* Crisp Voice Waveform Icon */}
-                <div className="w-7 h-7 rounded-full bg-white/[0.06] group-hover:bg-white text-white group-hover:text-black flex items-center justify-center transition-colors shrink-0">
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
-                    <path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" />
-                  </svg>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-semibold text-white tracking-wider">
-                    Digital Twin
-                  </span>
-                  <span className="text-[9px] font-mono uppercase tracking-widest text-slate-400 bg-white/[0.05] border border-white/10 px-2 py-0.5 rounded-full">
-                    AI Voice
-                  </span>
-                </div>
+                <svg className="w-4 h-4 text-black transition-transform duration-300 group-hover:rotate-45" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                </svg>
+                <span className="text-xs font-semibold tracking-tight">
+                  Digital Twin
+                </span>
               </button>
             </div>
           )}
