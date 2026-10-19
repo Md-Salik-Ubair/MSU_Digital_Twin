@@ -1597,6 +1597,17 @@ function App() {
                         </div>
                       ))}
 
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono text-slate-500 uppercase">Family Narrative / Background (AI RAG Corpus)</label>
+                        <textarea
+                          rows={3}
+                          value={profileForm.family_narrative || ''}
+                          onChange={(e) => setProfileForm({ ...profileForm, family_narrative: e.target.value })}
+                          placeholder="Enter family background or personal meta context for RAG..."
+                          className="w-full bg-black border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-white/30 outline-none resize-none font-mono"
+                        />
+                      </div>
+
                       <div className="space-y-3 pt-2">
                         <h3 className="text-[10px] font-mono text-slate-400 uppercase tracking-widest border-b border-white/5 pb-2">Channels</h3>
                         {['email', 'linkedin', 'github', 'instagram'].map((chan) => (
