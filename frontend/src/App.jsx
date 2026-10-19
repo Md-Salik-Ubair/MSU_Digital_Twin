@@ -1283,7 +1283,7 @@ function App() {
                       Core Proficiencies
                     </h2>
                     <span className="text-[11px] font-mono text-slate-600">
-                      System Architecture
+                      
                     </span>
                   </div>
 
