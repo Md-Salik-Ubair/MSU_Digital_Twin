@@ -150,7 +150,7 @@ function App() {
     if (!voices || voices.length === 0) return [];
 
     const isFemaleVoice = (v) =>
-      /Zira|Heera|Neerja|Swara|Kalpana|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Lekha|Nirmala|Cortana|Eva|Ava|Emma|Salli|Joanna|Kendra|kimberly|Ivy|Amy|Olivia|May|Serena| Martha|Fiona|Kate|Alice|Alva|Amelie|Anna|Carmit|Damayanti|Ellen|Ioana|Joana|Kanya|Kyoko|Laura|Luciana|Mariska|Mei-Jia|Melina|Milena|Monica|Nora|Paulina|Satu|Sin-ji|Ting-Ting|Yelda|Yuna|Zosia|Zuzana|Female|Woman|Girl|Google US English|Google UK English Female|हिन्दी|Hindi/i.test(
+      /Zira|Heera|Neerja|Swara|Kalpana|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Lekha|Nirmala|Cortana|Eva|Ava|Emma|Salli|Joanna|Kendra|kimberly|Ivy|Amy|Olivia|May|Serena|Martha|Fiona|Kate|Alice|Alva|Amelie|Anna|Carmit|Damayanti|Ellen|Ioana|Joana|Kanya|Kyoko|Laura|Luciana|Mariska|Mei-Jia|Melina|Milena|Monica|Nora|Paulina|Satu|Sin-ji|Ting-Ting|Yelda|Yuna|Zosia|Zuzana|Female|Woman|Girl|Google US English|Google UK English Female|हिन्दी|Hindi/i.test(
         `${v.name} ${v.voiceURI}`
       );
 
@@ -161,7 +161,7 @@ function App() {
     const localMalePatterns = [
       /Microsoft (Ravi|Prabhat)/i,
       /Microsoft (David|Mark|George|James|Richard)/i,
-      /\b(Ravi|Prabhat|David|Mark|George|Guy|Ryan|Andrew|Brian|Daniel|Alex|Oliver|Rishi|Aaron|Fred|Christopher|Eric|Steffan|Roger|Thomas|Lee|Gordon|Arthur|ichi)\b/i
+      /\b(Ravi|Prabhat|David|Mark|George|Guy|Ryan|Andrew|Brian|Daniel|Alex|Oliver|Rishi|Aaron|Fred|Christopher|Eric|Steffan|Roger|Thomas|Lee|Gordon|Arthur)\b/i
     ];
     for (const pattern of localMalePatterns) {
       for (const v of candidateVoices) {
@@ -740,7 +740,6 @@ function App() {
           }, 55);
           return;
         }
-        // Strictly refuse to speak if no verified male voice exists on the device
         finishSpeech();
         return;
       }
@@ -1080,7 +1079,6 @@ function App() {
     { label: 'Projects', view: 'portfolio', section: 'section-projects' },
     { label: 'Education', view: 'portfolio', section: 'section-education' },
     { label: 'Certifications', view: 'portfolio', section: 'section-certifications_and_achievements' },
-    { label: 'Get This Portfolio', view: 'portfolio', section: 'section-deploy-service', isCta: true },
     { label: 'Admin', view: 'admin-hub', section: null },
   ];
 
@@ -1099,12 +1097,13 @@ function App() {
     }
   };
 
-  const portfolioServiceWhatsappUrl = `https://wa.me/91${(backendData?.profile_core?.phone_number || '9337179991').replace(/\D/g, '').slice(-10)}?text=${encodeURIComponent(
-    'Hi Salik! I saw your AI Digital Twin Portfolio and want to get my own custom Admin-Controlled AI Portfolio deployed (₹1,999 Managed Setup).'
+  const cleanWhatsappPhone = (backendData?.profile_core?.phone_number || '9337179991').replace(/\D/g, '').slice(-10);
+  const dynamicWhatsappUrl = `https://wa.me/91${cleanWhatsappPhone}?text=${encodeURIComponent(
+    'Hi Salik! I saw your AI Digital Twin Portfolio and I am interested in getting my own custom Admin-Controlled AI Portfolio deployed with my own MongoDB and full Admin Hub control. Please share the next steps!'
   )}`;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-slate-100 font-sans antialiased selection:bg-white/20 scroll-smooth">
+    <div className="min-h-screen bg-[#050505] text-slate-100 font-sans antialiased selection:bg-amber-400/20 scroll-smooth">
       
       {/* Toast Notification */}
       {toast && (
@@ -1130,36 +1129,53 @@ function App() {
         </div>
       ) : (
         <>
-          {/* NAVIGATION BAR */}
-          <nav className="fixed w-full border-b border-white/[0.04] bg-[#050505]/80 backdrop-blur-2xl z-50 px-6 md:px-12 py-5 flex items-center justify-between transition-all">
-            <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => handleNavClick('portfolio', 'top')}>
-              <span className="font-mono text-xs font-semibold tracking-widest text-slate-300 hover:text-white transition-colors">
-                MSU
-              </span>
+          {/* NAVIGATION BAR (Brand + Sleek Executive Header Link next to MSU) */}
+          <nav className="fixed w-full border-b border-white/[0.04] bg-[#050505]/85 backdrop-blur-2xl z-50 px-4 sm:px-6 md:px-12 py-5 flex items-center justify-between transition-all">
+            <div className="flex items-center gap-3.5 sm:gap-5">
+              <div
+                className="flex items-center gap-2 cursor-pointer select-none"
+                onClick={() => handleNavClick('portfolio', 'top')}
+              >
+                <span className="font-mono text-xs font-semibold tracking-widest text-slate-200 hover:text-white transition-colors">
+                  MSU
+                </span>
+              </div>
+
+              <span className="h-3.5 w-[1px] bg-white/10" />
+
+              {/* Sleek High-Taste Header Link (Matches Navbar Typography, Zero Clunky Icons or Boxes) */}
+              <button
+                type="button"
+                onClick={() => handleNavClick('portfolio', 'section-deploy-service')}
+                title="Deploy your own custom AI Digital Twin Portfolio"
+                className="group inline-flex items-center gap-1.5 text-xs font-medium tracking-wider text-amber-200/90 hover:text-white transition-colors cursor-pointer outline-none"
+              >
+                {/* <span className="w-1.5 h-1.5 rounded-full bg-amber-400/90 group-hover:bg-amber-300 transition-colors" /> */}
+                <span>Get This Portfolio</span>
+                <svg className="w-3 h-3 text-amber-300/80 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+                </svg>
+              </button>
             </div>
 
-            <div className="hidden md:flex items-center gap-7">
+            <div className="hidden lg:flex items-center gap-8">
               {navLinks.map((link, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => handleNavClick(link.view, link.section)}
-                  className={
-                    link.isCta
-                      ? 'text-[11px] font-mono font-semibold tracking-wider text-white bg-white/[0.06] hover:bg-white hover:text-black border border-white/15 px-3.5 py-1.5 rounded-full transition-all outline-none cursor-pointer'
-                      : 'text-xs font-medium tracking-wider text-slate-400 hover:text-white transition-colors outline-none focus:outline-none cursor-pointer'
-                  }
+                  className="text-xs font-medium tracking-wider text-slate-400 hover:text-white transition-colors outline-none focus:outline-none cursor-pointer"
                 >
                   {link.label}
                 </button>
               ))}
             </div>
 
-            <div className="md:hidden flex items-center">
+            <div className="lg:hidden flex items-center">
               <button
                 type="button"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="text-white p-2 text-lg hover:text-slate-300 transition-colors outline-none focus:outline-none"
+                className="text-white p-1.5 text-lg hover:text-slate-300 transition-colors outline-none focus:outline-none"
               >
                 {isMobileMenuOpen ? '✕' : '☰'}
               </button>
@@ -1168,19 +1184,24 @@ function App() {
 
           {/* MOBILE MENU */}
           {isMobileMenuOpen && (
-            <div className="fixed top-[65px] left-0 w-full bg-[#050505]/95 backdrop-blur-3xl border-b border-white/5 z-40 md:hidden flex flex-col p-6 space-y-4 shadow-2xl animate-fadeIn">
+            <div className="fixed top-[65px] left-0 w-full bg-[#050505]/95 backdrop-blur-3xl border-b border-white/10 z-40 lg:hidden flex flex-col p-6 space-y-4 shadow-2xl animate-fadeIn">
               {navLinks.map((link, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => handleNavClick(link.view, link.section)}
-                  className={`text-sm font-medium tracking-widest py-2 text-left transition-all outline-none focus:outline-none ${
-                    link.isCta ? 'text-sky-400 font-mono font-semibold' : 'text-slate-300 hover:text-white'
-                  }`}
+                  className="text-sm font-medium tracking-widest text-slate-300 hover:text-white py-2 text-left transition-all outline-none focus:outline-none"
                 >
                   {link.label}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => handleNavClick('portfolio', 'section-deploy-service')}
+                className="w-full mt-2 py-3 px-4 rounded-full bg-white text-black font-semibold text-xs tracking-wide text-center shadow-lg cursor-pointer"
+              >
+                Get This Portfolio ↗
+              </button>
             </div>
           )}
 
@@ -1202,7 +1223,7 @@ function App() {
                       <span className="text-slate-600">•</span>
                       <span>{viewingNode.duration_or_date}</span>
                       {isItemMarkedNew(viewingNode) && (
-                        <span className="bg-sky-500/15 border border-sky-400/30 text-sky-300 text-[10px] font-mono font-semibold uppercase tracking-widest px-2.5 py-0.5 rounded-full">
+                        <span className="bg-amber-400/15 border border-amber-300/40 text-amber-200 text-[10px] font-mono font-semibold uppercase tracking-widest px-2.5 py-0.5 rounded-full">
                           NEW
                         </span>
                       )}
@@ -1243,7 +1264,10 @@ function App() {
                   <div className="flex flex-wrap gap-4 pt-6 border-t border-white/[0.04]">
                     {viewingNode.smart_links?.map((link, idx) => (
                       <a key={idx} href={link.url} target="_blank" rel="noreferrer" className="text-white hover:text-slate-300 text-sm font-medium transition-colors inline-flex items-center gap-1.5 border border-white/10 px-5 py-2.5 rounded-full">
-                        {link.label} ↗
+                        <span>{link.label}</span>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+                        </svg>
                       </a>
                     ))}
                   </div>
@@ -1536,7 +1560,7 @@ function App() {
                                   <div className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden mb-5 border border-white/[0.04] bg-[#070707]">
                                     <img src={item.image_urls[0]} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
                                     {isNewItem && (
-                                      <span className="absolute top-3 right-3 bg-black/80 backdrop-blur-md border border-sky-400/40 text-sky-300 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg">
+                                      <span className="absolute top-3 right-3 bg-black/85 backdrop-blur-md border border-amber-400/50 text-amber-200 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg">
                                         NEW
                                       </span>
                                     )}
@@ -1548,7 +1572,7 @@ function App() {
                                       {item.title}
                                     </h3>
                                     {isNewItem && (!item.image_urls || item.image_urls.length === 0) && (
-                                      <span className="bg-sky-500/15 border border-sky-400/30 text-sky-300 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full">
+                                      <span className="bg-amber-400/15 border border-amber-300/40 text-amber-200 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full">
                                         NEW
                                       </span>
                                     )}
@@ -1583,86 +1607,125 @@ function App() {
                   );
                 })}
 
-                {/* TURNKEY AI PORTFOLIO DEPLOYMENT SERVICE SECTION */}
-                <div id="section-deploy-service" className="scroll-mt-32 pt-8">
-                  <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.03] to-transparent p-7 md:p-12">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 border-b border-white/[0.06] pb-8">
+                {/* EXECUTIVE GOLDEN SAAS SHOWCASE — 100% PROFESSIONAL ENGLISH ARCHITECTURE */}
+                <section id="section-deploy-service" className="scroll-mt-32 pt-8">
+                  <div className="relative rounded-3xl border border-amber-400/20 bg-gradient-to-b from-amber-500/[0.03] via-[#08080a] to-[#050505] p-6 sm:p-10 md:p-12 overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.95)]">
+                    <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-2/3 h-40 bg-amber-500/[0.05] blur-[120px] pointer-events-none rounded-full" />
+
+                    {/* Top Row: Heading & Clean Executive Price Typography */}
+                    <div className="relative flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-8 md:pb-10 border-b border-white/[0.06]">
                       <div className="space-y-3 max-w-2xl">
-                        <div className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.2em] text-sky-400">
-                          <span>Turnkey Cloud Deployment Service</span>
+                        <div className="inline-flex items-center gap-2 text-amber-300/90 text-[11px] font-mono uppercase tracking-[0.2em]">
+                          {/* <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                          <span>Turnkey Cloud Architecture</span> */}
                         </div>
-                        <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                          Want an AI Digital Twin Portfolio Like This?
+
+                        <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                          Deploy Your Own{' '}
+                          <span className="bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300 bg-clip-text text-transparent">
+                            AI Digital Twin Portfolio
+                          </span>
                         </h2>
+
                         <p className="text-slate-400 text-sm md:text-base leading-relaxed">
-                          Get this exact executive portfolio architecture—complete with your own interactive AI Digital Twin, RAG vector engine, and full Admin CMS Hub—deployed live on your cloud infrastructure without touching a single line of code.
+                          Get this exact portfolio architecture deployed live for your personal brand. You receive{' '}
+                          <span className="text-slate-200 font-medium">100% ownership of your data, your dedicated MongoDB database, and a private Admin CMS Hub</span>{' '}
+                          to manage your resume, projects, skills, and AI knowledge base anytime without touching code.
                         </p>
                       </div>
 
-                      <div className="shrink-0 bg-[#0a0a0d] border border-white/10 rounded-2xl p-5 md:p-6 text-left lg:text-right space-y-1.5">
-                        <div className="text-[11px] font-mono uppercase tracking-widest text-slate-500">
-                          Complete Managed Setup
-                        </div>
-                        <div className="flex items-baseline lg:justify-end gap-2.5">
-                          <span className="text-xs font-mono text-slate-500 line-through">₹3,999</span>
-                          <span className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">₹1,999</span>
+                      {/* Clean Executive Pricing Block */}
+                      <div className="shrink-0 lg:text-right space-y-1">
+                        <div className="flex items-baseline lg:justify-end gap-3">
+                          <span className="text-sm font-mono text-slate-500 line-through">₹3,999</span>
+                          <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                            ₹1,999
+                          </span>
                           <span className="text-xs font-mono text-slate-400">/ one-time</span>
                         </div>
-                        <p className="text-[11px] font-mono text-slate-400">
-                          Live Deployment • Custom Admin Hub
+                        <p className="text-xs font-mono text-slate-400">
+                          Complete Live Setup • Zero Monthly Fees
                         </p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-8 border-b border-white/[0.06]">
-                      <div className="space-y-2">
-                        <div className="text-xs font-mono text-sky-400 font-semibold uppercase tracking-wider">
-                          01 // Self-Service Admin CMS
+                    {/* Middle Row: 3 Open Columns */}
+                    <div className="relative grid grid-cols-1 md:grid-cols-3 gap-8 py-8 md:py-10 border-b border-white/[0.06] md:divide-x md:divide-white/[0.06]">
+                      <div className="space-y-2.5">
+                        <div className="flex items-center gap-2.5 text-amber-300/90">
+                          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                          </svg>
+                          <h4 className="text-sm font-bold text-white tracking-tight">
+                            100% Control via Your Admin Hub
+                          </h4>
                         </div>
-                        <h4 className="text-sm font-bold text-white">Full Control Over Your Data</h4>
                         <p className="text-xs text-slate-400 leading-relaxed">
-                          Update your bio, resume corpus, projects, internships, skills, and photos anytime from your private Admin Hub—no coding required.
+                          Add, edit, reorder, or delete projects, experience, skills, resume links, and AI RAG context anytime from your private dashboard.
                         </p>
                       </div>
 
-                      <div className="space-y-2">
-                        <div className="text-xs font-mono text-indigo-400 font-semibold uppercase tracking-wider">
-                          02 // Your Own Cloud & Database
+                      <div className="space-y-2.5 md:pl-8">
+                        <div className="flex items-center gap-2.5 text-amber-300/90">
+                          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <ellipse cx="12" cy="5" rx="8" ry="3" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
+                          </svg>
+                          <h4 className="text-sm font-bold text-white tracking-tight">
+                            Your Own MongoDB & Cloud
+                          </h4>
                         </div>
-                        <h4 className="text-sm font-bold text-white">Dedicated MongoDB & Render Setup</h4>
                         <p className="text-xs text-slate-400 leading-relaxed">
-                          We configure and deploy the backend and frontend directly with your MongoDB database and cloud hosting for 100% data ownership.
+                          Connected directly to your personal MongoDB database and Render/Cloud account so your data and live link stay 100% in your hands.
                         </p>
                       </div>
 
-                      <div className="space-y-2">
-                        <div className="text-xs font-mono text-emerald-400 font-semibold uppercase tracking-wider">
-                          03 // Managed Production License
+                      <div className="space-y-2.5 md:pl-8">
+                        <div className="flex items-center gap-2.5 text-amber-300/90">
+                          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                          </svg>
+                          <h4 className="text-sm font-bold text-white tracking-tight">
+                            Managed Live Deployment
+                          </h4>
                         </div>
-                        <h4 className="text-sm font-bold text-white">Turnkey Live Deployment</h4>
                         <p className="text-xs text-slate-400 leading-relaxed">
-                          Delivered as a ready-to-use live web application managed by our core engine (proprietary source files remain protected).
+                          We handle the complete cloud build, AI RAG integration, and live deployment for you while keeping the core engine protected.
                         </p>
                       </div>
                     </div>
 
-                    <div className="pt-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <p className="text-xs font-mono text-slate-400">
-                        Ready in 24–48 hours • Includes AI RAG setup & custom avatar video integration
-                      </p>
-                      <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                    {/* Bottom Row: 100% Professional English Flexible Pricing Note + Executive CTA */}
+                    <div className="relative pt-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                      <div className="space-y-1.5 max-w-xl">
+                        <div className="flex items-center gap-2 text-amber-300/90 text-xs font-mono font-medium tracking-wide">
+                          {/* <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" /> */}
+                          <span>Flexible & Student-Friendly Pricing</span>
+                        </div>
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                          Interested in launching your own instance? Don't let budget hold you back—reach out directly on WhatsApp and we can tailor the setup and pricing to fit your requirements.
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 w-full md:w-auto">
                         <a
-                          href={portfolioServiceWhatsappUrl}
+                          href={dynamicWhatsappUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="w-full sm:w-auto text-center bg-white hover:bg-slate-200 text-black font-semibold text-xs md:text-sm px-6 py-3 rounded-full transition-all shadow-lg"
+                          className="group w-full md:w-auto inline-flex items-center justify-center gap-2.5 bg-white hover:bg-slate-200 text-black font-semibold text-xs sm:text-sm px-7 py-3.5 rounded-full shadow-[0_10px_35px_rgba(255,255,255,0.12)] transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
                         >
-                          Book Your Deployment (₹1,999) ↗
+                          <svg className="w-4 h-4 text-black shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                          </svg>
+                          <span>Connect on WhatsApp</span>
+                          <svg className="w-3.5 h-3.5 text-black transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+                          </svg>
                         </a>
                       </div>
                     </div>
                   </div>
-                </div>
+                </section>
 
                 {/* FOOTER */}
                 <footer className="pt-20 md:pt-28 pb-8 text-center space-y-12">
@@ -1798,7 +1861,7 @@ function App() {
                           onClick={() => setItemForm({ ...itemForm, is_new: !itemForm.is_new })}
                           className={`px-3.5 py-1.5 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
                             itemForm.is_new
-                              ? 'bg-sky-500/20 border border-sky-400/50 text-sky-300'
+                              ? 'bg-amber-400/20 border border-amber-300/50 text-amber-200'
                               : 'bg-white/5 border border-white/10 text-slate-500 hover:text-slate-300'
                           }`}
                         >
@@ -1870,7 +1933,7 @@ function App() {
                                   <div className="flex items-center gap-2">
                                     <p className="text-xs text-slate-200 font-medium truncate font-mono">{node.title}</p>
                                     {isItemMarkedNew(node) && (
-                                      <span className="bg-sky-500/15 border border-sky-400/30 text-sky-300 text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded-full shrink-0">
+                                      <span className="bg-amber-400/15 border border-amber-300/40 text-amber-200 text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded-full shrink-0">
                                         NEW
                                       </span>
                                     )}
@@ -2065,7 +2128,9 @@ function App() {
                             className="text-left text-xs text-slate-300 hover:text-white bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 rounded-xl px-3.5 py-2.5 transition-all flex items-center justify-between group cursor-pointer outline-none"
                           >
                             <span>{promptText}</span>
-                            <span className="opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">↗</span>
+                            <svg className="w-3 h-3 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+                            </svg>
                           </button>
                         ))}
                       </div>
