@@ -143,25 +143,26 @@ function App() {
     }
   }, []);
 
-  // 100% Verified Male-Only Voice Pool (Strictly Whitelisted Male Voices Only — Zero Female Possible)
+  // 100% Verified Male-Only Voice Pool (Desktop + Mobile Male Whitelist — Zero Female Possible)
   const selectBestMaleVoice = useCallback(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
     const voices = window.speechSynthesis.getVoices();
     if (!voices || voices.length === 0) return [];
 
     const isFemaleVoice = (v) =>
-      /Zira|Heera|Neerja|Swara|Kalpana|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Lekha|Nirmala|Cortana|Eva|Ava|Emma|Salli|Joanna|Kendra|kimberly|Ivy|Amy|Olivia|May|Serena|Martha|Fiona|Kate|Alice|Alva|Amelie|Anna|Carmit|Damayanti|Ellen|Ioana|Joana|Kanya|Kyoko|Laura|Luciana|Mariska|Mei-Jia|Melina|Milena|Monica|Nora|Paulina|Satu|Sin-ji|Ting-Ting|Yelda|Yuna|Zosia|Zuzana|Female|Woman|Girl|Google US English|Google UK English Female|हिन्दी|Hindi/i.test(
+      /Zira|Heera|Neerja|Swara|Kalpana|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Lekha|Nirmala|Cortana|Eva|Ava|Emma|Salli|Joanna|Kendra|kimberly|Ivy|Amy|Olivia|May|Serena|Martha|Fiona|Kate|Alice|Alva|Amelie|Anna|Carmit|Damayanti|Ellen|Ioana|Joana|Kanya|Kyoko|Laura|Luciana|Mariska|Mei-Jia|Melina|Milena|Monica|Nora|Paulina|Satu|Sin-ji|Ting-Ting|Yelda|Yuna|Zosia|Zuzana|sfg|ahp|cxx|tpf| Female|Woman|Girl|#female|Google US English|Google UK English Female|हिन्दी|Hindi/i.test(
         `${v.name} ${v.voiceURI}`
       );
 
     const candidateVoices = voices.filter((v) => /en/i.test(v.lang) && !isFemaleVoice(v));
     const pool = [];
 
-    // 1. Instant Local Hardware Male Voices (0ms latency, never stalls)
+    // 1. Instant Local Hardware Male Voices (Windows/Mac/Android local male engines, 0ms latency)
     const localMalePatterns = [
       /Microsoft (Ravi|Prabhat)/i,
       /Microsoft (David|Mark|George|James|Richard)/i,
-      /\b(Ravi|Prabhat|David|Mark|George|Guy|Ryan|Andrew|Brian|Daniel|Alex|Oliver|Rishi|Aaron|Fred|Christopher|Eric|Steffan|Roger|Thomas|Lee|Gordon|Arthur)\b/i
+      /\b(Ravi|Prabhat|David|Mark|George|Guy|Ryan|Andrew|Brian|Daniel|Alex|Oliver|Rishi|Aaron|Fred|Christopher|Eric|Steffan|Roger|Thomas|Lee|Gordon|Arthur)\b/i,
+      /(#male|en-in-x-end|en-in-x-ene|en-us-x-iom|en-us-x-tpd|en-gb-x-gbd|en-gb-x-rjs)/i
     ];
     for (const pattern of localMalePatterns) {
       for (const v of candidateVoices) {
@@ -175,7 +176,8 @@ function App() {
     const onlineMalePatterns = [
       /Microsoft (Andrew|Brian|Guy|Prabhat|Ryan|Christopher|Eric|Steffan|Roger)/i,
       /Google UK English Male/i,
-      /\b(Prabhat|Ravi|Guy|Ryan|Andrew|Brian|Christopher|Eric|Steffan|Roger|George|Mark|David|James|Richard|Daniel|Alex|Oliver|Rishi|Aaron|Fred|Male)\b/i
+      /\b(Prabhat|Ravi|Guy|Ryan|Andrew|Brian|Christopher|Eric|Steffan|Roger|George|Mark|David|James|Richard|Daniel|Alex|Oliver|Rishi|Aaron|Fred|Male)\b/i,
+      /(#male|en-in-x-end|en-in-x-ene|en-us-x-iom|en-us-x-tpd|en-gb-x-gbd|en-gb-x-rjs)/i
     ];
     for (const pattern of onlineMalePatterns) {
       for (const v of candidateVoices) {
@@ -260,7 +262,9 @@ function App() {
       if (isSoundActive) {
         silenceTicksRef.current = 0;
         setIsMouthMoving(true);
-        if (aiStateRef.current !== 'intro' && speakingRef.current) {
+        if (aiStateRef.current === 'intro' && speakingRef.current) {
+          speakingRef.current.muted = false;
+        } else if (aiStateRef.current !== 'intro' && speakingRef.current) {
           speakingRef.current.defaultMuted = true;
           speakingRef.current.muted = true;
           speakingRef.current.loop = true;
@@ -765,7 +769,7 @@ function App() {
       utterance.pitch = 0.96;
       utterance.volume = 1.0;
 
-      // 750ms Watchdog: if an online male voice stalls, immediately failover to the next male voice
+      // 750ms Watchdog: if an online male voice stalls, safely cancel and wait 60ms before failover
       if (ttsWatcherRef.current) clearTimeout(ttsWatcherRef.current);
       ttsWatcherRef.current = setTimeout(() => {
         if (!ttsActiveRef.current || utteranceRef.current !== utterance || chunkStarted) return;
@@ -774,9 +778,12 @@ function App() {
           startMutedLipSync();
           return;
         }
+        lastCancelTimeRef.current = Date.now();
         window.speechSynthesis.cancel();
         if (voiceFailoverIdx + 1 < malePool.length) {
-          speakNextChunk(voiceFailoverIdx + 1);
+          ttsWatcherRef.current = setTimeout(() => {
+            if (ttsActiveRef.current) speakNextChunk(voiceFailoverIdx + 1);
+          }, 60);
         } else {
           finishSpeech();
         }
@@ -829,7 +836,9 @@ function App() {
         }
         const currentPool = selectBestMaleVoice();
         if (ttsActiveRef.current && voiceFailoverIdx + 1 < currentPool.length) {
-          speakNextChunk(voiceFailoverIdx + 1);
+          ttsWatcherRef.current = setTimeout(() => {
+            if (ttsActiveRef.current) speakNextChunk(voiceFailoverIdx + 1);
+          }, 55);
           return;
         }
         finishSpeech();
@@ -1615,11 +1624,6 @@ function App() {
                     {/* Top Row: Heading & Clean Executive Price Typography */}
                     <div className="relative flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-8 md:pb-10 border-b border-white/[0.06]">
                       <div className="space-y-3 max-w-2xl">
-                        <div className="inline-flex items-center gap-2 text-amber-300/90 text-[11px] font-mono uppercase tracking-[0.2em]">
-                          {/* <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                          <span>Turnkey Cloud Architecture</span> */}
-                        </div>
-
                         <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
                           Deploy Your Own{' '}
                           <span className="bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300 bg-clip-text text-transparent">
