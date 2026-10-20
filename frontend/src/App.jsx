@@ -116,6 +116,23 @@ function App() {
 
   const isMuted = !isAudioEnabled;
 
+  // Helper: Detects if a portfolio node is marked as NEW (via boolean prop or persisted [NEW] tag marker)
+  const isItemMarkedNew = (item) => {
+    if (!item) return false;
+    if (Boolean(item.is_new)) return true;
+    const rawTags = item.tag_or_skills_mapped || '';
+    return rawTags.split(',').some((t) => t.trim().toUpperCase() === '[NEW]');
+  };
+
+  // Helper: Returns clean skills array without the internal [NEW] marker
+  const getCleanMappedSkills = (tagString) => {
+    if (!tagString) return [];
+    return tagString
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s !== '' && s.toUpperCase() !== '[NEW]');
+  };
+
   // Pre-warm browser speech voices
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -126,25 +143,25 @@ function App() {
     }
   }, []);
 
-  // 100% Verified Male-Only Voice Pool (Prioritizes Instant Local Hardware Male Voices First)
+  // 100% Verified Male-Only Voice Pool (Strictly Whitelisted Male Voices Only — Zero Female Possible)
   const selectBestMaleVoice = useCallback(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
     const voices = window.speechSynthesis.getVoices();
     if (!voices || voices.length === 0) return [];
 
     const isFemaleVoice = (v) =>
-      /Zira|Heera|Neerja|Swara|Kalpana|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Lekha|Nirmala|Cortana|Eva|Ava|Emma|Salli|Joanna|Kendra|kimberly|Ivy|Amy|Olivia|May|Female|Woman|Girl|Google US English|Google UK English Female|हिन्दी|Hindi/i.test(
+      /Zira|Heera|Neerja|Swara|Kalpana|Aria|Jenny|Sara|Sonia|Libby|Natasha|Clara|Molly|Ana|Michelle|Hazel|Susan|Catherine|Linda|Heather|Samantha|Victoria|Karen|Moira|Tessa|Veena|Lekha|Nirmala|Cortana|Eva|Ava|Emma|Salli|Joanna|Kendra|kimberly|Ivy|Amy|Olivia|May|Serena| Martha|Fiona|Kate|Alice|Alva|Amelie|Anna|Carmit|Damayanti|Ellen|Ioana|Joana|Kanya|Kyoko|Laura|Luciana|Mariska|Mei-Jia|Melina|Milena|Monica|Nora|Paulina|Satu|Sin-ji|Ting-Ting|Yelda|Yuna|Zosia|Zuzana|Female|Woman|Girl|Google US English|Google UK English Female|हिन्दी|Hindi/i.test(
         `${v.name} ${v.voiceURI}`
       );
 
     const candidateVoices = voices.filter((v) => /en/i.test(v.lang) && !isFemaleVoice(v));
     const pool = [];
 
-    // 1. Local hardware Male voices first (0ms latency, never hangs in Chrome)
+    // 1. Instant Local Hardware Male Voices (0ms latency, never stalls)
     const localMalePatterns = [
       /Microsoft (Ravi|Prabhat)/i,
       /Microsoft (David|Mark|George|James|Richard)/i,
-      /\b(Ravi|Prabhat|David|Mark|George|Guy|Ryan|Andrew|Brian|Daniel|Alex|Oliver|Rishi|Aaron|Fred)\b/i
+      /\b(Ravi|Prabhat|David|Mark|George|Guy|Ryan|Andrew|Brian|Daniel|Alex|Oliver|Rishi|Aaron|Fred|Christopher|Eric|Steffan|Roger|Thomas|Lee|Gordon|Arthur|ichi)\b/i
     ];
     for (const pattern of localMalePatterns) {
       for (const v of candidateVoices) {
@@ -154,18 +171,11 @@ function App() {
       }
     }
 
-    // 2. Any other local English non-female hardware voice
-    for (const v of candidateVoices) {
-      if (v.localService && !pool.includes(v)) {
-        pool.push(v);
-      }
-    }
-
-    // 3. Online/Neural Male voices (with watchdog failover)
+    // 2. High-Clarity Online/Neural Male Voices (Protected by 750ms Watchdog)
     const onlineMalePatterns = [
       /Microsoft (Andrew|Brian|Guy|Prabhat|Ryan|Christopher|Eric|Steffan|Roger)/i,
       /Google UK English Male/i,
-      /\b(Prabhat|Ravi|Guy|Ryan|Andrew|Brian|Christopher|Eric|Steffan|Roger|George|Mark|David|Male)\b/i
+      /\b(Prabhat|Ravi|Guy|Ryan|Andrew|Brian|Christopher|Eric|Steffan|Roger|George|Mark|David|James|Richard|Daniel|Alex|Oliver|Rishi|Aaron|Fred|Male)\b/i
     ];
     for (const pattern of onlineMalePatterns) {
       for (const v of candidateVoices) {
@@ -214,7 +224,6 @@ function App() {
         window.speechSynthesis.speaking &&
         !window.speechSynthesis.paused;
 
-      // Fallback if a local SAPI5 voice started speaking without firing onstart after 220ms
       if (
         ttsActiveRef.current &&
         browserSpeaking &&
@@ -260,7 +269,6 @@ function App() {
           }
         }
       } else {
-        // If TTS finished speaking in browser but Chrome dropped the final onend event, auto-reset after ~350ms of silence
         if (ttsActiveRef.current && hasChunkStartedRef.current && !browserSpeaking && !window.speechSynthesis?.pending) {
           silenceTicksRef.current += 1;
           if (silenceTicksRef.current >= 8) {
@@ -507,6 +515,7 @@ function App() {
     if (node.external_redirection_link && loadedSmartLinks.length === 0) {
       loadedSmartLinks.push({ label: 'Project Link', url: node.external_redirection_link });
     }
+    const cleanSkills = getCleanMappedSkills(node.tag_or_skills_mapped).join(', ');
     setEditingNode({ category, id: node.id });
     setItemForm({
       category: category,
@@ -515,8 +524,8 @@ function App() {
       duration_or_date: node.duration_or_date || '',
       description: node.description || '',
       hidden_readme: node.hidden_readme || '',
-      tag_or_skills_mapped: node.tag_or_skills_mapped || '',
-      is_new: Boolean(node.is_new),
+      tag_or_skills_mapped: cleanSkills,
+      is_new: isItemMarkedNew(node),
       smart_links: loadedSmartLinks,
       image_urls: node.image_urls || []
     });
@@ -525,14 +534,35 @@ function App() {
 
   const cancelEdit = () => {
     setEditingNode(null);
-    setItemForm({ category: 'projects', title: '', organization_or_issuer: '', duration_or_date: '', description: '', hidden_readme: '', tag_or_skills_mapped: '', smart_links: [], image_urls: [] });
+    setItemForm({
+      category: 'projects', title: '', organization_or_issuer: '', duration_or_date: '',
+      description: '', hidden_readme: '', tag_or_skills_mapped: '', is_new: false, smart_links: [], image_urls: []
+    });
   };
 
   const handleItemSubmit = (e) => {
     e.preventDefault();
-    const url = editingNode ? `${API_BASE_URL}/api/portfolio/item/${editingNode.category}/${editingNode.id}` : `${API_BASE_URL}/api/portfolio/item/${itemForm.category}`;
-    fetch(url, { method: editingNode ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(itemForm) })
-      .then(res => res.json()).then(resData => {
+    const cleanSkillsArr = getCleanMappedSkills(itemForm.tag_or_skills_mapped);
+    if (itemForm.is_new) {
+      cleanSkillsArr.push('[NEW]');
+    }
+    const payload = {
+      ...itemForm,
+      is_new: Boolean(itemForm.is_new),
+      tag_or_skills_mapped: cleanSkillsArr.join(', ')
+    };
+
+    const url = editingNode
+      ? `${API_BASE_URL}/api/portfolio/item/${editingNode.category}/${editingNode.id}`
+      : `${API_BASE_URL}/api/portfolio/item/${itemForm.category}`;
+
+    fetch(url, {
+      method: editingNode ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(res => res.json())
+      .then(resData => {
         if (resData.success) {
           showToast('Node Saved');
           cancelEdit();
@@ -586,22 +616,17 @@ function App() {
       .replace(/`([^`]+)`/g, '$1')
       .replace(/!\[.*?\]\(.*?\)/g, '')
       .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
-      // Turn markdown headings into a natural spoken topic pause
       .replace(/^#+\s*(.+)$/gm, '$1. ')
-      // Turn bold bullet labels like "• **Python** – core for AI" into smooth spoken clauses
       .replace(/^[•\-*+]\s*\*\*([^*]+)\*\*\s*[:–—-]\s*/gm, '$1, ')
       .replace(/^[•\-*+]\s*/gm, '')
       .replace(/(\*\*|__)(.*?)\1/g, '$2')
       .replace(/(\*|_)(.*?)\1/g, '$2')
-      // Speak slashes naturally ("JavaScript / TypeScript" -> "JavaScript and TypeScript")
       .replace(/\bAI\/ML\b/gi, 'A I and Machine Learning')
       .replace(/\bCI\/CD\b/gi, 'C I C D')
       .replace(/\bUI\/UX\b/gi, 'U I and U X')
       .replace(/\s+\/\s+/g, ' and ')
-      // Natural pause on dashes and colons
       .replace(/\s*[—–]\s*/g, ', ')
       .replace(/:\s+/g, ', ')
-      // Pronounce engineering terms & names like a real human engineer
       .replace(/\bMd\b/gi, 'M D')
       .replace(/\bUbair\b/gi, 'Ubair')
       .replace(/\bB\.Tech\b/gi, 'B Tech')
@@ -626,7 +651,7 @@ function App() {
       .trim();
   };
 
-  // Human-Cadence Male Speech Engine with 750ms Watchdog Failover (Never Stalls or Goes Silent)
+  // Human-Cadence Male Speech Engine with 750ms Watchdog Failover (100% Male Locked)
   const speakWithBrowserTTS = useCallback((text, msgIdx = null, forceUnmute = false) => {
     const currentlyMuted = isMuted && !forceUnmute;
     if (currentlyMuted || typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -642,7 +667,6 @@ function App() {
       ttsWatcherRef.current = null;
     }
 
-    // Always flush Chrome speech queue to prevent zombie lockups
     lastCancelTimeRef.current = Date.now();
     window.speechSynthesis.cancel();
     window.speechSynthesis.resume();
@@ -707,12 +731,17 @@ function App() {
 
       const malePool = selectBestMaleVoice();
 
-      if (malePool.length === 0 && voiceRetryCount < 10) {
-        voiceRetryCount += 1;
-        window.speechSynthesis.getVoices();
-        ttsWatcherRef.current = setTimeout(() => {
-          if (ttsActiveRef.current) speakNextChunk(voiceFailoverIdx);
-        }, 50);
+      if (malePool.length === 0) {
+        if (voiceRetryCount < 12) {
+          voiceRetryCount += 1;
+          window.speechSynthesis.getVoices();
+          ttsWatcherRef.current = setTimeout(() => {
+            if (ttsActiveRef.current) speakNextChunk(voiceFailoverIdx);
+          }, 55);
+          return;
+        }
+        // Strictly refuse to speak if no verified male voice exists on the device
+        finishSpeech();
         return;
       }
 
@@ -720,25 +749,24 @@ function App() {
         window.speechSynthesis.resume();
       }
 
-      const chosenMaleVoice = malePool[voiceFailoverIdx] || malePool[0] || null;
+      const chosenMaleVoice = malePool[voiceFailoverIdx] || malePool[0];
+      if (!chosenMaleVoice) {
+        finishSpeech();
+        return;
+      }
+
       const utterance = new SpeechSynthesisUtterance(chunks[currentIdx]);
       utteranceRef.current = utterance;
       chunkStartTimestampRef.current = Date.now();
       let chunkStarted = false;
 
-      if (chosenMaleVoice) {
-        utterance.voice = chosenMaleVoice;
-        utterance.lang = chosenMaleVoice.lang || 'en-US';
-        utterance.rate = 0.99;
-        utterance.pitch = 0.96;
-      } else {
-        utterance.lang = 'en-GB';
-        utterance.rate = 0.98;
-        utterance.pitch = 0.84;
-      }
+      utterance.voice = chosenMaleVoice;
+      utterance.lang = chosenMaleVoice.lang || 'en-US';
+      utterance.rate = 0.99;
+      utterance.pitch = 0.96;
       utterance.volume = 1.0;
 
-      // 750ms Watchdog: if a voice hangs silently without starting, auto-switch to next male voice
+      // 750ms Watchdog: if an online male voice stalls, immediately failover to the next male voice
       if (ttsWatcherRef.current) clearTimeout(ttsWatcherRef.current);
       ttsWatcherRef.current = setTimeout(() => {
         if (!ttsActiveRef.current || utteranceRef.current !== utterance || chunkStarted) return;
@@ -751,7 +779,7 @@ function App() {
         if (voiceFailoverIdx + 1 < malePool.length) {
           speakNextChunk(voiceFailoverIdx + 1);
         } else {
-          startMutedLipSync();
+          finishSpeech();
         }
       }, 750);
 
@@ -1052,6 +1080,7 @@ function App() {
     { label: 'Projects', view: 'portfolio', section: 'section-projects' },
     { label: 'Education', view: 'portfolio', section: 'section-education' },
     { label: 'Certifications', view: 'portfolio', section: 'section-certifications_and_achievements' },
+    { label: 'Get This Portfolio', view: 'portfolio', section: 'section-deploy-service', isCta: true },
     { label: 'Admin', view: 'admin-hub', section: null },
   ];
 
@@ -1069,6 +1098,10 @@ function App() {
       }, 100);
     }
   };
+
+  const portfolioServiceWhatsappUrl = `https://wa.me/91${(backendData?.profile_core?.phone_number || '9337179991').replace(/\D/g, '').slice(-10)}?text=${encodeURIComponent(
+    'Hi Salik! I saw your AI Digital Twin Portfolio and want to get my own custom Admin-Controlled AI Portfolio deployed (₹1,999 Managed Setup).'
+  )}`;
 
   return (
     <div className="min-h-screen bg-[#050505] text-slate-100 font-sans antialiased selection:bg-white/20 scroll-smooth">
@@ -1105,13 +1138,17 @@ function App() {
               </span>
             </div>
 
-            <div className="hidden md:flex items-center gap-8">
+            <div className="hidden md:flex items-center gap-7">
               {navLinks.map((link, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => handleNavClick(link.view, link.section)}
-                  className="text-xs font-medium tracking-wider text-slate-400 hover:text-white transition-colors outline-none focus:outline-none cursor-pointer"
+                  className={
+                    link.isCta
+                      ? 'text-[11px] font-mono font-semibold tracking-wider text-white bg-white/[0.06] hover:bg-white hover:text-black border border-white/15 px-3.5 py-1.5 rounded-full transition-all outline-none cursor-pointer'
+                      : 'text-xs font-medium tracking-wider text-slate-400 hover:text-white transition-colors outline-none focus:outline-none cursor-pointer'
+                  }
                 >
                   {link.label}
                 </button>
@@ -1137,7 +1174,9 @@ function App() {
                   key={idx}
                   type="button"
                   onClick={() => handleNavClick(link.view, link.section)}
-                  className="text-sm font-medium tracking-widest text-slate-300 hover:text-white py-2 text-left transition-all outline-none focus:outline-none"
+                  className={`text-sm font-medium tracking-widest py-2 text-left transition-all outline-none focus:outline-none ${
+                    link.isCta ? 'text-sky-400 font-mono font-semibold' : 'text-slate-300 hover:text-white'
+                  }`}
                 >
                   {link.label}
                 </button>
@@ -1162,6 +1201,11 @@ function App() {
                       <span className="uppercase tracking-widest">{viewingNode._category?.replace(/_/g, ' ')}</span>
                       <span className="text-slate-600">•</span>
                       <span>{viewingNode.duration_or_date}</span>
+                      {isItemMarkedNew(viewingNode) && (
+                        <span className="bg-sky-500/15 border border-sky-400/30 text-sky-300 text-[10px] font-mono font-semibold uppercase tracking-widest px-2.5 py-0.5 rounded-full">
+                          NEW
+                        </span>
+                      )}
                     </div>
                     <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">{viewingNode.title}</h2>
                     <p className="text-sm md:text-base text-slate-400 font-medium mt-2">{viewingNode.organization_or_issuer}</p>
@@ -1169,11 +1213,11 @@ function App() {
                 </div>
 
                 <div className="p-6 md:p-10 space-y-8 relative z-20">
-                  {viewingNode.tag_or_skills_mapped && (
+                  {getCleanMappedSkills(viewingNode.tag_or_skills_mapped).length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      {viewingNode.tag_or_skills_mapped.split(',').map((skill, i) => (
+                      {getCleanMappedSkills(viewingNode.tag_or_skills_mapped).map((skill, i) => (
                         <span key={i} className="text-slate-400 text-[11px] font-mono border border-white/5 bg-white/[0.02] px-3 py-1 rounded-full">
-                          {skill.trim()}
+                          {skill}
                         </span>
                       ))}
                     </div>
@@ -1425,7 +1469,7 @@ function App() {
                               key={branch.index}
                               className="group relative py-5 first:pt-2 last:pb-2 flex flex-col md:flex-row md:items-start gap-3.5 md:gap-8"
                             >
-                              {/* Left Branch Label with Perfectly Centered Spine Dot (No 01, 02 Numbers) */}
+                              {/* Left Branch Label with Perfectly Centered Spine Dot */}
                               <div className="relative md:w-52 shrink-0 flex items-center md:h-[30px]">
                                 <span className="absolute -left-5 md:-left-7 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[#050505] border border-white/35 group-hover:border-white group-hover:bg-white transition-all" />
                                 <h3 className="text-xs md:text-sm font-semibold text-slate-300 group-hover:text-white tracking-tight transition-colors">
@@ -1433,7 +1477,7 @@ function App() {
                                 </h3>
                               </div>
 
-                              {/* Right Skills Stream (Subtle Semi-Transparent Glass Pills) */}
+                              {/* Right Skills Stream */}
                               <div className="flex-1 flex flex-wrap items-center gap-2">
                                 {branch.items.map((skill, idx) => {
                                   const iconInfo = getSkillIconInfo(skill);
@@ -1477,51 +1521,151 @@ function App() {
                       </h2>
 
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-                        {(backendData[sec] || []).map((item) => (
-                          <div
-                            key={item.id}
-                            onClick={() => setViewingNode({ ...item, _category: sec })}
-                            className="group cursor-pointer bg-transparent border border-white/[0.05] hover:border-white/[0.12] hover:bg-white/[0.015] rounded-3xl p-6 md:p-8 transition-all duration-300 flex flex-col justify-between"
-                          >
-                            <div className="space-y-4 pointer-events-none">
-                              {item.image_urls && item.image_urls.length > 0 && (
-                                <div className="w-full h-44 sm:h-52 rounded-2xl overflow-hidden mb-5 border border-white/[0.04] bg-[#070707]">
-                                  <img src={item.image_urls[0]} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
+                        {(backendData[sec] || []).map((item) => {
+                          const isNewItem = isItemMarkedNew(item);
+                          const cleanSkills = getCleanMappedSkills(item.tag_or_skills_mapped);
+
+                          return (
+                            <div
+                              key={item.id}
+                              onClick={() => setViewingNode({ ...item, _category: sec })}
+                              className="group cursor-pointer bg-transparent border border-white/[0.05] hover:border-white/[0.12] hover:bg-white/[0.015] rounded-3xl p-6 md:p-8 transition-all duration-300 flex flex-col justify-between relative"
+                            >
+                              <div className="space-y-4 pointer-events-none">
+                                {item.image_urls && item.image_urls.length > 0 && (
+                                  <div className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden mb-5 border border-white/[0.04] bg-[#070707]">
+                                    <img src={item.image_urls[0]} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
+                                    {isNewItem && (
+                                      <span className="absolute top-3 right-3 bg-black/80 backdrop-blur-md border border-sky-400/40 text-sky-300 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg">
+                                        NEW
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex flex-wrap items-center gap-2.5">
+                                    <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-slate-200 transition-colors leading-snug">
+                                      {item.title}
+                                    </h3>
+                                    {isNewItem && (!item.image_urls || item.image_urls.length === 0) && (
+                                      <span className="bg-sky-500/15 border border-sky-400/30 text-sky-300 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full">
+                                        NEW
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] sm:text-xs font-mono text-slate-500 shrink-0 text-right">{item.duration_or_date}</span>
                                 </div>
-                              )}
-                              <div className="flex items-start justify-between gap-4">
-                                <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-slate-200 transition-colors leading-snug">{item.title}</h3>
-                                <span className="text-[10px] sm:text-xs font-mono text-slate-500 shrink-0 text-right">{item.duration_or_date}</span>
+                                <p className="text-sm font-medium text-slate-400">{item.organization_or_issuer}</p>
+
+                                {cleanSkills.length > 0 && (
+                                  <div className="flex flex-wrap gap-x-3 gap-y-1.5 pt-1">
+                                    {cleanSkills.slice(0, 4).map((skill, i) => (
+                                      <span key={i} className="text-slate-500 text-[11px] font-mono flex items-center">
+                                        {skill} {i !== 3 && i !== cleanSkills.length - 1 && <span className="ml-3 opacity-30">•</span>}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+
+                                <p className="text-sm text-slate-400 leading-relaxed line-clamp-2 pt-2">{item.description}</p>
                               </div>
-                              <p className="text-sm font-medium text-slate-400">{item.organization_or_issuer}</p>
 
-                              {item.tag_or_skills_mapped && (
-                                <div className="flex flex-wrap gap-x-3 gap-y-1.5 pt-1">
-                                  {item.tag_or_skills_mapped.split(',').slice(0, 4).map((skill, i) => (
-                                    <span key={i} className="text-slate-500 text-[11px] font-mono flex items-center">
-                                      {skill.trim()} {i !== 3 && i !== item.tag_or_skills_mapped.split(',').length - 1 && <span className="ml-3 opacity-30">•</span>}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-
-                              <p className="text-sm text-slate-400 leading-relaxed line-clamp-2 pt-2">{item.description}</p>
+                              <div className="mt-6 flex justify-start pt-4 border-t border-white/[0.03] pointer-events-none">
+                                <span className="text-xs font-medium text-slate-500 group-hover:text-white transition-colors flex items-center gap-2">
+                                  Read Document <span className="group-hover:translate-x-1 transition-transform">→</span>
+                                </span>
+                              </div>
                             </div>
-
-                            <div className="mt-6 flex justify-start pt-4 border-t border-white/[0.03] pointer-events-none">
-                              <span className="text-xs font-medium text-slate-500 group-hover:text-white transition-colors flex items-center gap-2">
-                                Read Document <span className="group-hover:translate-x-1 transition-transform">→</span>
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   );
                 })}
 
+                {/* TURNKEY AI PORTFOLIO DEPLOYMENT SERVICE SECTION */}
+                <div id="section-deploy-service" className="scroll-mt-32 pt-8">
+                  <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.03] to-transparent p-7 md:p-12">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 border-b border-white/[0.06] pb-8">
+                      <div className="space-y-3 max-w-2xl">
+                        <div className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.2em] text-sky-400">
+                          <span>Turnkey Cloud Deployment Service</span>
+                        </div>
+                        <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                          Want an AI Digital Twin Portfolio Like This?
+                        </h2>
+                        <p className="text-slate-400 text-sm md:text-base leading-relaxed">
+                          Get this exact executive portfolio architecture—complete with your own interactive AI Digital Twin, RAG vector engine, and full Admin CMS Hub—deployed live on your cloud infrastructure without touching a single line of code.
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 bg-[#0a0a0d] border border-white/10 rounded-2xl p-5 md:p-6 text-left lg:text-right space-y-1.5">
+                        <div className="text-[11px] font-mono uppercase tracking-widest text-slate-500">
+                          Complete Managed Setup
+                        </div>
+                        <div className="flex items-baseline lg:justify-end gap-2.5">
+                          <span className="text-xs font-mono text-slate-500 line-through">₹3,999</span>
+                          <span className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">₹1,999</span>
+                          <span className="text-xs font-mono text-slate-400">/ one-time</span>
+                        </div>
+                        <p className="text-[11px] font-mono text-slate-400">
+                          Live Deployment • Custom Admin Hub
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-8 border-b border-white/[0.06]">
+                      <div className="space-y-2">
+                        <div className="text-xs font-mono text-sky-400 font-semibold uppercase tracking-wider">
+                          01 // Self-Service Admin CMS
+                        </div>
+                        <h4 className="text-sm font-bold text-white">Full Control Over Your Data</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                          Update your bio, resume corpus, projects, internships, skills, and photos anytime from your private Admin Hub—no coding required.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="text-xs font-mono text-indigo-400 font-semibold uppercase tracking-wider">
+                          02 // Your Own Cloud & Database
+                        </div>
+                        <h4 className="text-sm font-bold text-white">Dedicated MongoDB & Render Setup</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                          We configure and deploy the backend and frontend directly with your MongoDB database and cloud hosting for 100% data ownership.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="text-xs font-mono text-emerald-400 font-semibold uppercase tracking-wider">
+                          03 // Managed Production License
+                        </div>
+                        <h4 className="text-sm font-bold text-white">Turnkey Live Deployment</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                          Delivered as a ready-to-use live web application managed by our core engine (proprietary source files remain protected).
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <p className="text-xs font-mono text-slate-400">
+                        Ready in 24–48 hours • Includes AI RAG setup & custom avatar video integration
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                        <a
+                          href={portfolioServiceWhatsappUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-full sm:w-auto text-center bg-white hover:bg-slate-200 text-black font-semibold text-xs md:text-sm px-6 py-3 rounded-full transition-all shadow-lg"
+                        >
+                          Book Your Deployment (₹1,999) ↗
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* FOOTER */}
-                <footer className="pt-24 md:pt-32 pb-8 text-center space-y-12">
+                <footer className="pt-20 md:pt-28 pb-8 text-center space-y-12">
                   <div className="max-w-2xl mx-auto space-y-4">
                     <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight">Let's connect.</h2>
                     <p className="text-slate-400 text-sm md:text-base leading-relaxed">
@@ -1643,6 +1787,25 @@ function App() {
                         <option value="certifications_and_achievements">Certifications & Awards</option>
                       </select>
 
+                      {/* NEW Badge Toggle Switch */}
+                      <div className="md:col-span-2 flex items-center justify-between bg-black/60 border border-white/10 rounded-xl px-4 py-3">
+                        <div className="space-y-0.5">
+                          <span className="text-xs font-mono font-semibold text-white block">Highlight with "NEW" Badge</span>
+                          <span className="text-[10px] font-mono text-slate-500 block">Displays a sleek NEW tag on this card in the public portfolio</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setItemForm({ ...itemForm, is_new: !itemForm.is_new })}
+                          className={`px-3.5 py-1.5 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                            itemForm.is_new
+                              ? 'bg-sky-500/20 border border-sky-400/50 text-sky-300'
+                              : 'bg-white/5 border border-white/10 text-slate-500 hover:text-slate-300'
+                          }`}
+                        >
+                          {itemForm.is_new ? '★ NEW Enabled' : 'Enable NEW'}
+                        </button>
+                      </div>
+
                       <div className="md:col-span-2 bg-black/40 p-4 rounded-xl border border-dashed border-white/10 space-y-3">
                         <label className="text-[10px] font-mono text-slate-400 uppercase tracking-widest flex items-center justify-between">
                           <span>Images</span>
@@ -1666,7 +1829,7 @@ function App() {
                       <input type="text" placeholder="Title" value={itemForm.title} required onChange={(e) => setItemForm({ ...itemForm, title: e.target.value })} className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none font-mono" />
                       <input type="text" placeholder="Organization / Issuer" value={itemForm.organization_or_issuer} onChange={(e) => setItemForm({ ...itemForm, organization_or_issuer: e.target.value })} className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none font-mono" />
                       <input type="text" placeholder="Duration" value={itemForm.duration_or_date} onChange={(e) => setItemForm({ ...itemForm, duration_or_date: e.target.value })} className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none font-mono" />
-                      <input type="text" placeholder="Skills Mapped" value={itemForm.tag_or_skills_mapped} onChange={(e) => setItemForm({ ...itemForm, tag_or_skills_mapped: e.target.value })} className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none font-mono" />
+                      <input type="text" placeholder="Skills Mapped (comma separated)" value={itemForm.tag_or_skills_mapped} onChange={(e) => setItemForm({ ...itemForm, tag_or_skills_mapped: e.target.value })} className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none font-mono" />
                       <textarea rows={4} placeholder="Public Description" value={itemForm.description} onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })} className="md:col-span-2 bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none resize-none font-mono" />
 
                       <textarea rows={3} placeholder="Internal Readme Context (AI Vector Ingestion Only)" value={itemForm.hidden_readme || ''} onChange={(e) => setItemForm({ ...itemForm, hidden_readme: e.target.value })} className="md:col-span-2 bg-white/[0.02] border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-200 outline-none resize-none font-mono" />
@@ -1704,7 +1867,14 @@ function App() {
                             {backendData[category].map((node, index) => (
                               <div key={node.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-black p-3.5 rounded-xl border border-white/5 gap-2">
                                 <div className="truncate w-full sm:max-w-[65%]">
-                                  <p className="text-xs text-slate-200 font-medium truncate font-mono">{node.title}</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-xs text-slate-200 font-medium truncate font-mono">{node.title}</p>
+                                    {isItemMarkedNew(node) && (
+                                      <span className="bg-sky-500/15 border border-sky-400/30 text-sky-300 text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded-full shrink-0">
+                                        NEW
+                                      </span>
+                                    )}
+                                  </div>
                                   <p className="text-[10px] text-slate-500 truncate font-mono">{node.organization_or_issuer}</p>
                                 </div>
                                 <div className="flex items-center gap-1.5 w-full sm:w-auto">
